@@ -117,6 +117,14 @@ export const NAV_SPEC: ReadonlyArray<NavSpec> = [
     visibleTo: ["super_admin"],
   },
   {
+    // Go-live setup checklist — GET /api/admin/config-status. Surfaces which non-blocking integrations
+    // (GitHub / Confluence / auth / LLM) are configured + from which source (db = saved here in the UI).
+    name: "Setup",
+    href: "/admin/setup",
+    icon: ClipboardDocumentListIcon,
+    visibleTo: ["super_admin"],
+  },
+  {
     name: "Kill switches",
     href: "/kill-switches",
     icon: AdjustmentsHorizontalIcon,
