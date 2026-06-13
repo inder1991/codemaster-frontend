@@ -21,11 +21,13 @@ export interface ConfluenceConfigV1 {
   enabled?: boolean;
 }
 
-/** PUT body — the token is write-only (never echoed by GET). auth_email omitted ⇒ Bearer PAT. */
+/** PUT body — the token is write-only (never echoed by GET). auth_email omitted ⇒ Bearer PAT. The token is
+ *  OPTIONAL on an UPDATE of an already-configured space (omit to keep the stored one while toggling enabled /
+ *  editing the URL); REQUIRED on the initial config (the backend 422s otherwise). */
 export interface ConfluenceConfigUpdateV1 {
   base_url: string;
   auth_email?: string;
-  token: string;
+  token?: string;
   enabled?: boolean;
 }
 

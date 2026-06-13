@@ -66,10 +66,12 @@ export function GitHubConfigCard() {
     setSaveError(null);
     setSaveSuccess(false);
     try {
+      // Partial update: send the secrets only when (re)entered; omit them to keep the stored pair while
+      // toggling enabled / fixing app_id (the backend keeps the existing ciphertext). They go as a pair.
+      const rotatingSecrets = privateKeyPem.trim() !== "" || webhookSecret.trim() !== "";
       await putGitHubConfig({
         app_id: appId.trim(),
-        private_key_pem: privateKeyPem,
-        webhook_secret: webhookSecret,
+        ...(rotatingSecrets ? { private_key_pem: privateKeyPem, webhook_secret: webhookSecret } : {}),
         enabled,
       });
       setPrivateKeyPem("");
@@ -84,13 +86,18 @@ export function GitHubConfigCard() {
     }
   }
 
+  const configured = configQuery.data?.configured === true;
+
+  // When already configured, the secrets are optional (omit to keep the stored pair); only app_id required.
+  // On the initial config both secrets are required, and they rotate as a pair (both or neither).
+  const secretsPaired =
+    (privateKeyPem.trim() !== "") === (webhookSecret.trim() !== "");
+  const secretsPresent = privateKeyPem.trim() !== "" && webhookSecret.trim() !== "";
   const canSave =
     appId.trim() !== "" &&
-    privateKeyPem.trim() !== "" &&
-    webhookSecret.trim() !== "" &&
+    secretsPaired &&
+    (configured || secretsPresent) &&
     !isSaving;
-
-  const configured = configQuery.data?.configured === true;
 
   return (
     <Card padding="md" data-testid="github-config-card">
@@ -104,7 +111,7 @@ export function GitHubConfigCard() {
           : configQuery.isError
             ? "Couldn't load the current GitHub configuration (it may still be set). You can (re)enter it below."
             : configured
-              ? `Configured (App ID ${configQuery.data?.appId ?? "?"}). Re-enter the private key + webhook secret to rotate.`
+              ? `Configured (App ID ${configQuery.data?.appId ?? "?"}). Leave the secrets blank to keep them; re-enter both to rotate.`
               : "Not configured — paste the GitHub App credentials to enable PR reviews + webhooks."}
       </p>
 
@@ -127,8 +134,8 @@ export function GitHubConfigCard() {
             value={privateKeyPem}
             onChange={(e) => setPrivateKeyPem(e.target.value)}
             rows={5}
-            required
-            placeholder="-----BEGIN RSA PRIVATE KEY-----"
+            required={!configured}
+            placeholder={configured ? "•••••••• (leave blank to keep)" : "-----BEGIN RSA PRIVATE KEY-----"}
             className={cn(INPUT_CLASS, "font-mono", colors.divider, colors.bg.surface, t.meta)}
           />
         </div>
@@ -139,8 +146,9 @@ export function GitHubConfigCard() {
             type="password"
             value={webhookSecret}
             onChange={(e) => setWebhookSecret(e.target.value)}
-            required
+            required={!configured}
             autoComplete="off"
+            placeholder={configured ? "•••••••• (leave blank to keep)" : undefined}
             className={cn(INPUT_CLASS, colors.divider, colors.bg.surface, t.body)}
           />
         </div>

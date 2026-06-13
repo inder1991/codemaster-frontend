@@ -19,11 +19,13 @@ export interface GitHubConfigV1 {
   enabled?: boolean;
 }
 
-/** PUT body — the secrets are write-only (never echoed by GET). */
+/** PUT body — the secrets are write-only (never echoed by GET). On an UPDATE of an already-configured App
+ *  they are OPTIONAL (omit to keep the stored ones while toggling enabled / fixing app_id); on the INITIAL
+ *  config they are required (the backend 422s otherwise). They rotate as a pair (both or neither). */
 export interface GitHubConfigUpdateV1 {
   app_id: string;
-  private_key_pem: string;
-  webhook_secret: string;
+  private_key_pem?: string;
+  webhook_secret?: string;
   enabled?: boolean;
 }
 

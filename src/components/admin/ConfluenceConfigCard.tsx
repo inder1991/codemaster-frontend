@@ -73,7 +73,9 @@ export function ConfluenceConfigCard() {
         base_url: baseUrl.trim(),
         // Omit (Bearer PAT) vs send (Cloud HTTP-Basic) — exactOptionalPropertyTypes-friendly.
         ...(trimmedEmail !== "" ? { auth_email: trimmedEmail } : {}),
-        token,
+        // Partial update: send the token only when (re)entered; omit to keep the stored one (the backend
+        // keeps the existing ciphertext) while toggling enabled / editing the URL.
+        ...(token.trim() !== "" ? { token } : {}),
         enabled,
       });
       setToken("");
@@ -87,8 +89,10 @@ export function ConfluenceConfigCard() {
     }
   }
 
-  const canSave = baseUrl.trim() !== "" && token.trim() !== "" && !isSaving;
   const configured = configQuery.data?.configured === true;
+  // When already configured the token is optional (omit to keep it); only base_url required. Initial config
+  // requires the token.
+  const canSave = baseUrl.trim() !== "" && (configured || token.trim() !== "") && !isSaving;
 
   return (
     <Card padding="md" data-testid="confluence-config-card">
@@ -102,7 +106,7 @@ export function ConfluenceConfigCard() {
           : configQuery.isError
             ? "Couldn't load the current Confluence configuration (it may still be set). You can (re)enter it below."
             : configured
-              ? `Configured (${configQuery.data?.baseUrl ?? "?"}). Re-enter the API token to rotate.`
+              ? `Configured (${configQuery.data?.baseUrl ?? "?"}). Leave the token blank to keep it; re-enter to rotate.`
               : "Not configured — add the Confluence base URL + API token to enable knowledge ingestion."}
       </p>
 
@@ -140,8 +144,9 @@ export function ConfluenceConfigCard() {
             type="password"
             value={token}
             onChange={(e) => setToken(e.target.value)}
-            required
+            required={!configured}
             autoComplete="off"
+            placeholder={configured ? "•••••••• (leave blank to keep)" : undefined}
             className={cn(INPUT_CLASS, colors.divider, colors.bg.surface, t.body)}
           />
         </div>
