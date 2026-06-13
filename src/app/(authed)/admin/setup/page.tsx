@@ -13,6 +13,7 @@
 import { CheckCircleIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import { useQuery } from "@tanstack/react-query";
 
+import { ConfluenceConfigCard } from "@/components/admin/ConfluenceConfigCard";
 import { GitHubConfigCard } from "@/components/admin/GitHubConfigCard";
 import { Card } from "@/components/ui/elements/Card";
 import {
@@ -79,8 +80,10 @@ export default function SetupPage() {
         </ul>
       </Card>
 
-      {/* Configure GitHub here (writes the platform singleton; the checklist above reflects it on save). */}
+      {/* Configure GitHub + Confluence here (write the platform singletons; the checklist above reflects
+          them on save). */}
       <GitHubConfigCard />
+      <ConfluenceConfigCard />
     </div>
   );
 }
