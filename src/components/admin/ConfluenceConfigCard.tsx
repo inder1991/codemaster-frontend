@@ -17,8 +17,10 @@ import { Card } from "@/components/ui/elements/Card";
 import { CONFIG_STATUS_QUERY_KEYS } from "@/lib/api/config-status";
 import {
   CONFLUENCE_CONFIG_QUERY_KEYS,
+  type ConfluenceTestResult,
   fetchConfluenceConfig,
   putConfluenceConfig,
+  testConfluenceConfig,
 } from "@/lib/api/confluence-config";
 import { cn } from "@/lib/cn";
 import { colors, type as t } from "@/lib/design-tokens";
@@ -57,6 +59,8 @@ export function ConfluenceConfigCard() {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+  const [isTesting, setIsTesting] = useState<boolean>(false);
+  const [testResult, setTestResult] = useState<ConfluenceTestResult | null>(null);
 
   // Prefill the non-secret fields from the GET ONCE (the token stays empty — write-only, re-enter to rotate).
   // Hydrate-once via a ref: deps on [configQuery.data] would re-run on every refetch (post-save invalidation,
@@ -98,16 +102,31 @@ export function ConfluenceConfigCard() {
     }
   }
 
-  // Clear a stale Saved/error banner the moment the operator edits a field (review P2).
+  // Clear a stale Saved/error banner + test result the moment the operator edits a field (review P2).
   function clearSaveStatus(): void {
     setSaveSuccess(false);
     setSaveError(null);
+    setTestResult(null);
+  }
+
+  // Connectivity probe — tests the entered base_url + token WITHOUT persisting. Never throws (the client
+  // surfaces {ok:false,message}, incl. a clear note when the probe is unwired in this deployment).
+  async function handleTest(): Promise<void> {
+    setIsTesting(true);
+    setTestResult(null);
+    try {
+      setTestResult(await testConfluenceConfig({ base_url: baseUrl.trim(), token }));
+    } finally {
+      setIsTesting(false);
+    }
   }
 
   const configured = configQuery.data?.configured === true;
   // When already configured the token is optional (omit to keep it); only base_url required. Initial config
   // requires the token.
   const canSave = baseUrl.trim() !== "" && (configured || token.trim() !== "") && !isSaving;
+  // Test always needs both creds in-hand (it can't use the stored token).
+  const canTest = baseUrl.trim() !== "" && token.trim() !== "" && !isTesting && !isSaving;
 
   return (
     <Card padding="md" data-testid="confluence-config-card">
@@ -196,10 +215,24 @@ export function ConfluenceConfigCard() {
             Saved — the runtime will pick up the new credentials.
           </p>
         ) : null}
+        {testResult ? (
+          <p
+            className={cn(t.meta, testResult.ok ? colors.status.healthy : colors.status.down)}
+            data-testid="confluence-config-test-result"
+          >
+            {testResult.ok ? "✓ " : "✗ "}
+            {testResult.message}
+          </p>
+        ) : null}
 
-        <Button type="submit" disabled={!canSave}>
-          {isSaving ? "Saving…" : "Save Confluence config"}
-        </Button>
+        <div className="flex gap-2">
+          <Button type="submit" disabled={!canSave}>
+            {isSaving ? "Saving…" : "Save Confluence config"}
+          </Button>
+          <Button type="button" variant="secondary" disabled={!canTest} onClick={() => void handleTest()}>
+            {isTesting ? "Testing…" : "Test connection"}
+          </Button>
+        </div>
       </form>
     </Card>
   );

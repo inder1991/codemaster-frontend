@@ -36,10 +36,19 @@ export const CONFLUENCE_CONFIG_QUERY_KEYS = {
   current: () => [...CONFLUENCE_CONFIG_QUERY_KEYS.all, "current"] as const,
 };
 
+/** Result of the connectivity probe (never carries the token). */
+export interface ConfluenceTestResult {
+  ok: boolean;
+  message: string;
+}
+
 // ── Fetchers ──────────────────────────────────────────────────────
 
 const CONFLUENCE_CONFIG_URL = "/api/admin/confluence-config";
+const CONFLUENCE_TEST_URL = "/api/admin/confluence-config/test";
 const DEFAULT_TIMEOUT_MS = 15_000;
+// A real connectivity probe can take several seconds.
+const TEST_TIMEOUT_MS = 30_000;
 
 export async function fetchConfluenceConfig(): Promise<ConfluenceConfigV1> {
   const controller = new AbortController();
@@ -104,6 +113,49 @@ export async function putConfluenceConfig(body: ConfluenceConfigUpdateV1): Promi
         null,
       );
     }
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Probe Confluence connectivity with the given base_url + token WITHOUT persisting. Never throws on a
+ * failed probe — surfaces {ok:false,message}. Returns ok:false with a clear note when the probe adapter is
+ * unwired in this deployment (HTTP 503). Mirrors testLlmCredentials' shape.
+ */
+export async function testConfluenceConfig(body: {
+  base_url: string;
+  token: string;
+}): Promise<ConfluenceTestResult> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TEST_TIMEOUT_MS);
+  try {
+    const csrf = readCsrfToken();
+    const res = await fetch(CONFLUENCE_TEST_URL, {
+      method: "POST",
+      credentials: "include",
+      signal: controller.signal,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrf ?? "",
+      },
+      body: JSON.stringify(body),
+    });
+    if (res.status === 503) {
+      return { ok: false, message: "Connectivity test isn't available in this deployment." };
+    }
+    if (!res.ok) {
+      let message = `connectivity test failed (HTTP ${res.status})`;
+      try {
+        const json = (await res.json()) as { detail?: string };
+        if (typeof json.detail === "string") message = json.detail;
+      } catch {
+        // body not JSON — keep the default
+      }
+      return { ok: false, message };
+    }
+    return (await res.json()) as ConfluenceTestResult;
   } finally {
     clearTimeout(timer);
   }

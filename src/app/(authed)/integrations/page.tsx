@@ -34,7 +34,6 @@ import { useState } from "react";
 
 import { AddConfluenceSpaceModal } from "@/components/integrations/AddConfluenceSpaceModal";
 import { IntegrationRow } from "@/components/integrations/IntegrationRow";
-import { PlatformCredentialsCard } from "@/components/admin/PlatformCredentialsCard";
 import { VisibilityViolationBanner } from "@/components/confluence/VisibilityViolationBanner";
 import { Button } from "@/components/ui/elements/Button";
 import { Card } from "@/components/ui/elements/Card";
@@ -230,9 +229,8 @@ export default function IntegrationsPage() {
         </p>
       ) : null}
 
-      <section className="mb-6">
-        <PlatformCredentialsCard provider="confluence" />
-      </section>
+      {/* Confluence credentials moved to the canonical Setup page (/admin/setup → Confluence card → DB),
+          the single write path. This page manages ingestion/spaces only. */}
 
       <section className="space-y-3">
         <h2 className={cn(t.h2, colors.text.primary)}>
