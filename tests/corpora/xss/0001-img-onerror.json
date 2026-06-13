@@ -1,0 +1,7 @@
+{
+  "id": "xss-0001-img-onerror",
+  "field": "body",
+  "input": "<img src=x onerror=\"fetch('/api/admin/flags', {method:'PUT'})\">",
+  "expected_escaped_output": "<img src=x onerror=\"fetch('/api/admin/flags', {method:'PUT'})\">",
+  "notes": "Img-onerror is the canonical XSS-via-attribute payload. React's JSX rendering must keep the angle brackets escaped so no <img> element is constructed and no fetch fires. The body string is rendered as a text node only."
+}

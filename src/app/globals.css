@@ -1,0 +1,426 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans:
+    var(--font-sans, "Inter"), "Inter Tight", system-ui, sans-serif;
+  --font-mono:
+    "JetBrains Mono", ui-monospace, "SF Mono", Monaco, Consolas, monospace;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+html {
+  font-family: var(--font-sans);
+  font-feature-settings:
+    "cv11" 1, /* alternate single-story a */
+    "ss01" 1; /* stylistic set 1 */
+}
+
+body {
+  /* Warm-cream baseline (light) + cool-charcoal (dark). Tinted
+     OKLCH; never pure white or pure black. */
+  background-color: oklch(97% 0.018 80);
+  color: oklch(15% 0.015 80);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.dark body {
+  background-color: oklch(18% 0.01 270);
+  color: oklch(95% 0.005 80);
+}
+
+/* Selection color picks up the locked amber accent. */
+::selection {
+  background-color: oklch(94% 0.06 65);
+  color: oklch(15% 0.015 80);
+}
+
+.dark ::selection {
+  background-color: oklch(28% 0.08 65);
+  color: oklch(95% 0.005 80);
+}
+
+/* prefers-reduced-motion: collapse every transition to instant. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Visible focus rings everywhere. NEVER `outline: none` for
+   "design"; per DESIGN.md a11y. */
+:focus-visible {
+  outline: 2px solid oklch(72% 0.16 65);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ---------------------------------------------------------------
+ * Locked design-token CSS classes.
+ *
+ * 2026-05-04: rewritten as real CSS rules in this file rather
+ * than Tailwind arbitrary-value classes, after a Tailwind v4
+ * extraction issue caused `[color:oklch(15%_0.015_80)]` and
+ * similar bare arbitrary-property classes to NOT have their
+ * underscores converted to spaces, producing invalid CSS that
+ * the browser rejected. Real CSS classes have no extraction
+ * surface and always work.
+ *
+ * `design-tokens.ts` maps semantic tokens to these class names.
+ * --------------------------------------------------------------- */
+
+/* Type scale. */
+.t-display {
+  font-size: 34px;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-weight: 800;
+}
+.t-h2 {
+  font-size: 22px;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  font-weight: 600;
+}
+.t-h3 {
+  font-size: 17px;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+.t-body-large {
+  font-size: 15px;
+  line-height: 1.55;
+}
+.t-body {
+  font-size: 14px;
+  line-height: 1.55;
+}
+.t-body-strong {
+  font-size: 14px;
+  line-height: 1.55;
+  font-weight: 600;
+}
+.t-meta {
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 500;
+}
+.t-caption {
+  font-size: 12px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+}
+.t-numeric-large {
+  font-size: 28px;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.t-numeric-body {
+  font-size: 14px;
+  line-height: 1.55;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Foreground colors. Light mode by default; .dark ancestor
+ * swaps to the dark-theme value. */
+.c-text-primary {
+  color: oklch(15% 0.015 80);
+}
+.dark .c-text-primary {
+  color: oklch(95% 0.005 80);
+}
+
+.c-text-muted {
+  color: oklch(42% 0.012 80);
+}
+.dark .c-text-muted {
+  color: oklch(70% 0.008 80);
+}
+
+.c-text-faint {
+  color: oklch(58% 0.01 80);
+}
+.dark .c-text-faint {
+  color: oklch(55% 0.006 80);
+}
+
+.c-text-inverse {
+  color: oklch(97% 0.018 80);
+}
+
+.c-text-accent {
+  color: oklch(60% 0.18 65);
+}
+.dark .c-text-accent {
+  color: oklch(76% 0.14 65);
+}
+
+.c-text-on-solid {
+  color: oklch(97% 0.018 80);
+}
+
+/* Background colors. */
+.c-bg-surface {
+  background-color: oklch(97% 0.018 80);
+}
+.dark .c-bg-surface {
+  background-color: oklch(18% 0.01 270);
+}
+
+.c-bg-elevated {
+  background-color: oklch(99% 0.008 80);
+}
+.dark .c-bg-elevated {
+  background-color: oklch(22% 0.012 270);
+}
+
+.c-bg-muted {
+  background-color: oklch(92% 0.028 80);
+}
+.dark .c-bg-muted {
+  background-color: oklch(26% 0.014 270);
+}
+
+.c-bg-accent {
+  background-color: oklch(94% 0.06 65);
+}
+.dark .c-bg-accent {
+  background-color: oklch(28% 0.08 65);
+}
+
+.c-bg-accent-solid {
+  background-color: oklch(72% 0.16 65);
+}
+.dark .c-bg-accent-solid {
+  background-color: oklch(76% 0.14 65);
+}
+.c-bg-accent-solid:hover {
+  background-color: oklch(67% 0.16 65);
+}
+.dark .c-bg-accent-solid:hover {
+  background-color: oklch(70% 0.14 65);
+}
+
+/* Border colors. */
+.c-border-default {
+  border-color: oklch(88% 0.022 80);
+}
+.dark .c-border-default {
+  border-color: oklch(30% 0.012 270);
+}
+
+.c-border-strong {
+  border-color: oklch(78% 0.025 80);
+}
+.dark .c-border-strong {
+  border-color: oklch(40% 0.014 270);
+}
+
+/* Hover states for backgrounds. */
+.c-hover-bg:hover {
+  background-color: oklch(92% 0.028 80);
+}
+.dark .c-hover-bg:hover {
+  background-color: oklch(26% 0.014 270);
+}
+
+.c-hover-bg-elevated:hover {
+  background-color: oklch(95% 0.022 80);
+}
+.dark .c-hover-bg-elevated:hover {
+  background-color: oklch(30% 0.014 270);
+}
+
+/* Hover states for foregrounds. */
+.c-hover-text-primary:hover {
+  color: oklch(15% 0.015 80);
+}
+.dark .c-hover-text-primary:hover {
+  color: oklch(95% 0.005 80);
+}
+
+.c-hover-text-muted:hover {
+  color: oklch(42% 0.012 80);
+}
+.dark .c-hover-text-muted:hover {
+  color: oklch(80% 0.008 80);
+}
+
+/* Status foregrounds. Lightness pulled down so 12-13px text on
+ * tinted-bg passes WCAG AA in light mode. */
+.c-status-healthy { color: oklch(48% 0.13 165); }
+.dark .c-status-healthy { color: oklch(76% 0.13 165); }
+
+.c-status-degraded { color: oklch(50% 0.14 80); }
+.dark .c-status-degraded { color: oklch(82% 0.16 80); }
+
+.c-status-down { color: oklch(52% 0.18 25); }
+.dark .c-status-down { color: oklch(70% 0.18 25); }
+
+.c-status-info { color: oklch(50% 0.14 235); }
+.dark .c-status-info { color: oklch(74% 0.13 235); }
+
+.c-status-dim { color: oklch(50% 0.07 320); }
+.dark .c-status-dim { color: oklch(74% 0.06 320); }
+
+/* Status backgrounds (for the chip's tinted bg). */
+.c-statusbg-healthy { background-color: oklch(94% 0.05 165); }
+.dark .c-statusbg-healthy { background-color: oklch(26% 0.08 165); }
+
+.c-statusbg-degraded { background-color: oklch(94% 0.06 80); }
+.dark .c-statusbg-degraded { background-color: oklch(26% 0.10 80); }
+
+.c-statusbg-down { background-color: oklch(94% 0.06 25); }
+.dark .c-statusbg-down { background-color: oklch(26% 0.10 25); }
+
+.c-statusbg-info { background-color: oklch(94% 0.05 235); }
+.dark .c-statusbg-info { background-color: oklch(26% 0.08 235); }
+
+.c-statusbg-dim { background-color: oklch(94% 0.03 320); }
+.dark .c-statusbg-dim { background-color: oklch(26% 0.05 320); }
+
+/* Status DOTS (for the chip's leading dot). */
+.c-statusdot-healthy { background-color: oklch(72% 0.13 165); }
+.dark .c-statusdot-healthy { background-color: oklch(76% 0.13 165); }
+.c-statusdot-degraded { background-color: oklch(78% 0.16 80); }
+.dark .c-statusdot-degraded { background-color: oklch(82% 0.16 80); }
+.c-statusdot-down { background-color: oklch(60% 0.18 25); }
+.dark .c-statusdot-down { background-color: oklch(70% 0.18 25); }
+.c-statusdot-info { background-color: oklch(70% 0.13 235); }
+.dark .c-statusdot-info { background-color: oklch(74% 0.13 235); }
+.c-statusdot-dim { background-color: oklch(70% 0.06 320); }
+.dark .c-statusdot-dim { background-color: oklch(74% 0.06 320); }
+
+/* Divider color for `.divide-y .c-divider` row groups. The
+ * `.divide-y` utility provides the border-width + style; this
+ * class only sets the color so it composes cleanly. */
+.c-divider > * + * {
+  border-top-color: oklch(88% 0.022 80);
+}
+.dark .c-divider > * + * {
+  border-top-color: oklch(30% 0.012 270);
+}
+
+/* Accent ring (focus-visible) — single source of truth. */
+.c-accent-ring:focus-visible {
+  outline: 2px solid oklch(72% 0.16 65);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------
+ * Sprint X.2 (2026-05-11) — login page visual chrome.
+ *
+ * Adopted from the Anthropic Design handoff bundle at
+ * frontend/design/codemaster-aligned/Login.html. The original
+ * prototype inlined these in a <style> block; we move them here
+ * so the Client Component can rely on stable class names.
+ *
+ * Classes are namespaced `.login-*` to avoid bleeding into other
+ * pages.
+ *
+ * --------------------------------------------------------------- */
+
+.login-dot-grid {
+  background-image: radial-gradient(oklch(80% 0.018 80 / 0.55) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.dark .login-dot-grid {
+  background-image: radial-gradient(oklch(35% 0.012 270 / 0.7) 1px, transparent 1px);
+}
+
+.login-ambient-glow {
+  background:
+    radial-gradient(ellipse 75% 60% at 50% 50%,
+      oklch(72% 0.16 65 / 0.16) 0%,
+      oklch(72% 0.16 65 / 0.05) 35%,
+      oklch(72% 0.16 65 / 0) 65%);
+}
+.dark .login-ambient-glow {
+  background:
+    radial-gradient(ellipse 65% 50% at 50% 50%,
+      oklch(72% 0.16 65 / 0.22) 0%,
+      oklch(72% 0.16 65 / 0.08) 30%,
+      oklch(72% 0.16 65 / 0) 60%);
+}
+
+/* "Healthy" pulse dot — used on the systems-operational chip and
+ * the suggested-reviewer status indicators. */
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 0   oklch(72% 0.13 165 / 0.55); }
+  70%      { box-shadow: 0 0 0 6px oklch(72% 0.13 165 / 0); }
+}
+.pulse-dot { animation: pulse-dot 2s cubic-bezier(0.4,0,0.6,1) infinite; }
+
+.login-field {
+  background-color: oklch(99% 0.008 80);
+  color: oklch(15% 0.015 80);
+  border: 1px solid oklch(86% 0.022 80);
+  box-shadow: inset 0 1px 0 oklch(0% 0 0 / 0.02);
+}
+.dark .login-field {
+  background-color: oklch(20% 0.012 270);
+  color: oklch(95% 0.005 80);
+  border-color: oklch(32% 0.012 270);
+  box-shadow: inset 0 1px 0 oklch(0% 0 0 / 0.20);
+}
+.login-field::placeholder { color: oklch(58% 0.01 80); }
+.dark .login-field::placeholder { color: oklch(50% 0.008 270); }
+.login-field:focus {
+  outline: none;
+  border-color: oklch(72% 0.16 65);
+  box-shadow: inset 0 1px 0 oklch(0% 0 0 / 0.02), 0 0 0 4px oklch(72% 0.16 65 / 0.18);
+}
+.dark .login-field:focus {
+  box-shadow: inset 0 1px 0 oklch(0% 0 0 / 0.20), 0 0 0 4px oklch(72% 0.16 65 / 0.30);
+}
+
+.login-caps-pill { background-color: oklch(94% 0.06 80); color: oklch(50% 0.14 80); }
+.dark .login-caps-pill { background-color: oklch(26% 0.10 80); color: oklch(82% 0.16 80); }
+
+.login-sso-btn {
+  background-color: oklch(99% 0.008 80);
+  color: oklch(15% 0.015 80);
+  border: 1px solid oklch(86% 0.022 80);
+  box-shadow: 0 1px 0 oklch(0% 0 0 / 0.02);
+}
+.dark .login-sso-btn {
+  background-color: oklch(22% 0.012 270);
+  color: oklch(95% 0.005 80);
+  border-color: oklch(34% 0.012 270);
+  box-shadow: 0 1px 0 oklch(0% 0 0 / 0.20);
+}
+.login-sso-btn:hover { border-color: oklch(72% 0.16 65 / 0.6); }
+
+.login-or-divider { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.login-or-divider::before, .login-or-divider::after { content: ""; height: 1px; background-color: oklch(86% 0.022 80); }
+.dark .login-or-divider::before, .dark .login-or-divider::after { background-color: oklch(32% 0.012 270); }
+
+/* ---------------------------------------------------------------
+ * prose-codemaster: scoped typography for author PR descriptions
+ * rendered via react-markdown in the review-detail rail (PrSummary).
+ * Uses the same design vars as the locked token CSS above.
+ * --------------------------------------------------------------- */
+.prose-codemaster p { margin-bottom: 0.5rem; }
+.prose-codemaster h1, .prose-codemaster h2, .prose-codemaster h3 { font-weight: 600; margin: 0.5rem 0 0.25rem; }
+.prose-codemaster ul { list-style: disc; padding-left: 1.25rem; margin-bottom: 0.5rem; }
+.prose-codemaster ol { list-style: decimal; padding-left: 1.25rem; margin-bottom: 0.5rem; }
+.prose-codemaster code { font-family: var(--font-mono); font-size: 0.85em; }
+.prose-codemaster a { color: oklch(60% 0.18 65); text-decoration: underline; text-underline-offset: 2px; }
+.dark .prose-codemaster a { color: oklch(76% 0.14 65); }
+.prose-codemaster pre { margin: 0.5rem 0; padding: 0.75rem; border-radius: 8px; overflow-x: auto; background-color: oklch(92% 0.028 80); border: 1px solid oklch(88% 0.022 80); }
+.dark .prose-codemaster pre { background-color: oklch(26% 0.014 270); border-color: oklch(30% 0.012 270); }
+.prose-codemaster pre code { font-size: 0.85em; background: none; padding: 0; }
+.prose-codemaster > :last-child { margin-bottom: 0; }

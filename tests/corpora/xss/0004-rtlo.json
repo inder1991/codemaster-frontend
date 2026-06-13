@@ -1,0 +1,7 @@
+{
+  "id": "xss-0004-rtlo",
+  "field": "title",
+  "input": "Innocent‮txt.exe",
+  "expected_escaped_output": "Innocent‮txt.exe",
+  "notes": "Right-to-left override (U+202E) layout-confusion payload — it makes 'Innocenttxt.exe' visually look like 'Innocentexe.txt'. Not strictly XSS but a UI-spoof primitive worth keeping the corpus aware of. The driver asserts the literal U+202E codepoint reaches the DOM (we don't strip Unicode formatting characters; we just don't build any HTML attributes from finding text)."
+}

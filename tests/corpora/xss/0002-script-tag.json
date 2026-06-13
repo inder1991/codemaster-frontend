@@ -1,0 +1,7 @@
+{
+  "id": "xss-0002-script-tag",
+  "field": "title",
+  "input": "\"><script>alert(1)</script>",
+  "expected_escaped_output": "\"><script>alert(1)</script>",
+  "notes": "Closing-attribute-then-script payload aimed at JSX-attribute interpolation. The finding title is rendered as text only (no attribute interpolation), so the literal characters reach the DOM unmodified and no <script> element is created."
+}

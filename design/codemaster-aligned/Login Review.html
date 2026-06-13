@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login UX review · codemaster</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="globals.css" />
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .prose-body { max-width: 760px; }
+    .sev-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+      padding: 2px 8px; border-radius: 999px; text-transform: uppercase;
+    }
+    .sev-blocker { color: oklch(78% 0.16 25); background: oklch(30% 0.10 25 / 0.5); }
+    .sev-issue { color: oklch(82% 0.14 65); background: oklch(28% 0.10 65 / 0.5); }
+    .sev-suggest { color: oklch(82% 0.10 220); background: oklch(28% 0.06 220 / 0.5); }
+    .sev-nit { color: oklch(78% 0.012 270); background: oklch(28% 0.012 270); }
+    .sev-win { color: oklch(82% 0.13 165); background: oklch(28% 0.08 165 / 0.5); }
+    .sev-pill .dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+    .num-card {
+      background: oklch(20% 0.012 270);
+      border: 1px solid oklch(32% 0.012 270);
+      border-radius: 10px;
+      padding: 18px 20px;
+    }
+    .num-val { font-family: 'JetBrains Mono', monospace; font-size: 32px; font-weight: 700; line-height: 1; }
+    .finding {
+      background: oklch(20% 0.012 270);
+      border: 1px solid oklch(32% 0.012 270);
+      border-radius: 10px;
+      padding: 18px 20px;
+    }
+    .finding + .finding { margin-top: 14px; }
+    .finding-head {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .finding-id {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      color: oklch(56% 0.012 270);
+    }
+    .finding-title {
+      font-size: 16px; font-weight: 600; color: oklch(95% 0.005 80);
+    }
+    .finding-body {
+      font-size: 14px; line-height: 1.55; color: oklch(78% 0.008 270);
+    }
+    .finding-body p + p { margin-top: 8px; }
+    .finding-body strong { color: oklch(95% 0.005 80); font-weight: 600; }
+    .finding-body code {
+      font-family: 'JetBrains Mono', monospace; font-size: 12.5px;
+      background: oklch(26% 0.012 270); padding: 1px 5px; border-radius: 3px;
+      color: oklch(88% 0.005 80);
+    }
+    .finding-body ul { margin-top: 8px; padding-left: 18px; }
+    .finding-body ul li { margin-top: 3px; }
+    .fix {
+      margin-top: 12px; padding: 10px 12px;
+      background: oklch(24% 0.014 270); border: 1px solid oklch(34% 0.014 270);
+      border-radius: 6px; font-size: 13px; color: oklch(85% 0.008 270);
+    }
+    .fix b { color: oklch(82% 0.14 65); font-weight: 700; letter-spacing: 0.04em; font-size: 11px; text-transform: uppercase; margin-right: 6px; }
+    .section-rule {
+      display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 14px;
+      margin: 36px 0 18px;
+    }
+    .section-rule h2 {
+      font-size: 22px; font-weight: 700; color: oklch(95% 0.005 80); letter-spacing: -0.01em;
+    }
+    .section-rule .rule { height: 1px; background: oklch(28% 0.012 270); }
+    .verdict-grade {
+      font-family: 'JetBrains Mono', monospace; font-size: 56px; font-weight: 800;
+      line-height: 1; color: oklch(82% 0.14 65);
+    }
+    a { color: oklch(82% 0.14 65); text-decoration: underline; text-underline-offset: 3px; }
+  </style>
+</head>
+<body class="c-bg-surface c-text-primary">
+  <main class="max-w-[920px] mx-auto px-8 py-12" data-screen-label="01 Login UX Review">
+
+    <!-- Header -->
+    <header class="flex items-start justify-between gap-6 mb-8">
+      <div>
+        <p class="t-caption c-text-muted" style="letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600;">
+          Design review · Sprint 14
+        </p>
+        <h1 class="t-display c-text-primary mt-2" style="font-size: 36px;">
+          Login page — comprehensive UX/UI audit
+        </h1>
+        <p class="mt-3 t-body-large c-text-muted prose-body">
+          A frank, head-of-design pass on <code class="font-mono">/login</code> ahead of the 5,000-engineer pilot. Findings are ranked by user-impact and ordered for the smallest viable fix first.
+        </p>
+      </div>
+      <div class="text-right shrink-0">
+        <p class="t-caption c-text-faint">Reviewer</p>
+        <p class="t-body-strong c-text-primary mt-0.5">Head of Design</p>
+        <p class="t-caption c-text-faint mt-0.5 font-mono">2026-05-10</p>
+      </div>
+    </header>
+
+    <!-- Verdict card -->
+    <section class="num-card mb-8" style="display:grid; grid-template-columns: auto 1fr; gap: 24px; align-items: center;">
+      <div class="text-center">
+        <p class="t-caption c-text-faint" style="letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600;">Overall</p>
+        <p class="verdict-grade mt-1">B−</p>
+      </div>
+      <div>
+        <p class="t-body c-text-primary" style="font-size: 15px;">
+          <strong>Functional and on-brand, but emotionally inert.</strong> The page works for engineers who already know what codemaster is, and fails newcomers, accessibility audits, and anyone landing here from a session timeout. The right-side product preview is the strongest thing on the page; the form column is technically correct but underexplained, and the error vocabulary contains at least one piece of copy that breaks user trust.
+        </p>
+        <div class="mt-3 flex items-center gap-x-3 t-caption c-text-muted flex-wrap">
+          <span><strong class="c-text-primary">12</strong> findings</span>
+          <span aria-hidden="true">·</span>
+          <span><span class="sev-pill sev-blocker"><span class="dot"></span>1 blocker</span></span>
+          <span><span class="sev-pill sev-issue"><span class="dot"></span>4 issues</span></span>
+          <span><span class="sev-pill sev-suggest"><span class="dot"></span>5 suggestions</span></span>
+          <span><span class="sev-pill sev-nit"><span class="dot"></span>2 nits</span></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- What's working -->
+    <div class="section-rule">
+      <h2>What's working</h2>
+      <span class="rule"></span>
+    </div>
+    <div class="finding">
+      <div class="finding-head">
+        <span class="sev-pill sev-win"><span class="dot"></span>Wins</span>
+      </div>
+      <div class="finding-body">
+        <ul>
+          <li><strong>Right-column product preview.</strong> The single, polished GitHub comment is the most persuasive thing on the page. It tells the story of what codemaster <em>does</em> in three seconds — diff hunk + suggested change + citation footnote — and quietly proves the trust-traceability invariant from <code>PRODUCT.md</code>.</li>
+          <li><strong>Brand identity is consistent.</strong> Amber accent, dot-grid texture, and ambient glow read as one product. Dark mode is properly themed end-to-end (no white flashes on field focus).</li>
+          <li><strong>Caps-lock detector in the password field</strong> is a small, specific care signal that engineers notice.</li>
+          <li><strong>SSO is the visual primary, directory is the visual secondary.</strong> Hierarchy matches actual usage — most pilot users will be on Okta.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- BLOCKER -->
+    <div class="section-rule">
+      <h2>Blocker</h2>
+      <span class="rule"></span>
+    </div>
+
+    <div class="finding">
+      <div class="finding-head">
+        <span class="finding-id">L-01</span>
+        <span class="sev-pill sev-blocker"><span class="dot"></span>Blocker</span>
+        <span class="finding-title">The <code>ldap_unreachable</code> error tells unauthorized users how to escalate</span>
+      </div>
+      <div class="finding-body">
+        <p>Current copy: <em>"Auth service temporarily unavailable. The local super-admin path is still working, try a super-admin credential if you have one."</em></p>
+        <p>This is a security disclosure on a public-facing form. Anyone — including someone testing credentials they shouldn't have — learns (a) that a fallback admin path exists, and (b) that it accepts shared super-admin credentials. The internal recovery hint belongs in a runbook, not on a banner shown to every failed login attempt during an LDAP outage.</p>
+      </div>
+      <div class="fix"><b>Fix</b> Replace with <em>"Auth service temporarily unavailable. Please try again in a few minutes, or contact your platform owner."</em> The super-admin path can still be used; it just stops being advertised.</div>
+    </div>
+
+    <!-- ISSUES -->
+    <div class="section-rule">
+      <h2>Issues</h2>
+      <span class="rule"></span>
+    </div>
+
+    <div class="finding">
+      <div class="finding-head">
+        <span class="finding-id">L-02</span>
+        <span class="sev-pill sev-issue"><span class="dot"></span>Issue</span>
+        <span class="finding-title">"Welcome back" greets first-time pilot users with a lie</span>
+      </div>
+      <div class="finding-body">
+        <p>5,000 engineers across 60+ orgs are about to see this page for the first time. The H1 assumes prior visit and gives them no idea what they're signing into. There's no product positioning, no "what is this," no link to the docs hub.</p>
+        <p>The right-column preview compensates partially, but it's hidden below ~1024px and on the small percentage of users who land via "session-ended" the warmth is misplaced.</p>
+      </div>
+      <div class="fix"><b>Fix</b> Detect first-visit (no prior session cookie) and swap to <em>"Sign in to codemaster"</em> with a one-line subhead: "AI code review for the platform org — every finding cites a source." Keep "Welcome back" only when a prior session is detected.</div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-head">
+        <span class="finding-id">L-03</span>
+        <span class="sev-pill sev-issue"><span class="dot"></span>Issue</span>
+        <span class="finding-title">No "remember me" / persistent session control</span>
+      </div>
+      <div class="finding-body">
+        <p>Engineers will hit this page multiple times a day on the pilot. There's no checkbox to opt into a longer session, no indication of session length, and no way for a security-conscious user to opt <em>out</em> of long sessions on a shared machine. Auth-product convention covers both.</p>
+      </div>
+      <div class="fix"><b>Fix</b> Add a "Keep me signed in for 7 days" checkbox below the password field, default-on for SSO and default-off for directory. Show the resulting expiry as helper text.</div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-head">
+        <span class="finding-id">L-04</span>
+        <span class="sev-pill sev-issue"><span class="dot"></span>Issue</span>
+        <span class="finding-title">Password field has no "show password" affordance</span>
+      </div>
+      <div class="finding-body">
+        <p>Standard pattern; absence is conspicuous on a page that otherwise feels considered. Especially important here because the directory path is the <em>fallback</em> — when SSO fails and a user is hand-typing a long LDAP password under stress, they need to verify it.</p>
+      </div>
+      <div class="fix"><b>Fix</b> Add an eye-toggle in the password field's trailing slot, alongside the existing caps-lock pill. Persist the show/hide state for the lifetime of the form only.</div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-head">
+        <span class="finding-id">L-05</span>
+        <span class="sev-pill sev-issue"><span class="dot"></span>Issue</span>
+        <span class="finding-title">Right column hidden below 1024px with no replacement</span>
+      </div>
+      <div class="finding-body">
+        <p>On laptops at <code>15"</code> in split-window mode and on iPads, the entire product-preview disappears. The user is left with a small centered form that gives them zero context for what codemaster is. The empty space is also genuinely ugly — the ambient glow + dot grid was tuned for the two-column layout.</p>
+      </div>
+      <div class="fix"><b>Fix</b> Below <code>lg</code>, collapse the preview to a compact one-line summary above the form: <em>"AI code review · 3,074 repos · every finding cites a source"</em> with a small severity-pill row. Re-tune the ambient glow for the single-column case.</div>
+    </div>
+
+    <!-- SUGGESTIONS -->
+    <div class="section-rule">
+      <h2>Suggestions</h2>
+      <span class="rule"></span>
+    </div>
+
+    <div class="finding">
+      <div class="finding-head">
+        <span class="finding-id">L-06</span>
+        <span class="sev-pill sev-suggest"><span class="dot"></span>Suggestion</span>
+        <span class="finding-title">SSO button doesn't tell users where they're going</span>
+      </div>
+      <div class="finding-body">
+        <p>"Continue with Acme SSO" is generic. The earlier "routes through Okta" subtext was the right instinct — losing it to reduce clutter was probably the wrong trade. Engineers about to be redirected want to know <em>which</em> IdP, especially during an Okta-vs-Azure-AD migration.</p>
+      </div>
+      <div class="fix"><b>Fix</b> Bake the IdP into the button itself: <em>"Continue with Okta"</em> + the Okta wordmark glyph. Removes the subtitle <em>and</em> raises information density.</div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-head">
+        <span class="finding-id">L-07</span>
+        <span class="sev-pill sev-suggest"><span class="dot"></span>Suggestion</span>
+        <span class="finding-title">"OR USE DIRECTORY" reads as second-class punishment</span>
+      </div>
+      <div class="finding-body">
+        <p>For platform-owners and during incident response, the directory path is the <em>preferred</em> path because it bypasses any IdP outage. The current language signals it as the lesser option.</p>
+      </div>
+      <div class="fix"><b>Fix</b> Soften to <em>"Or sign in with your directory account"</em>, lowercase, no all-caps. Keep visual hierarchy the same; just stop calling it a fallback.</div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-head">
+        <span class="finding-id">L-08</span>
+        <span class="sev-pill sev-suggest"><span class="dot"></span>Suggestion</span>
+        <span class="finding-title">No status link for "is codemaster down right now?"</span>
+      </div>
+      <div class="finding-body">
+        <p>Internal tools live or die by their status page. The right-column does the trust work for the product, but if the user is sitting on a failed sign-in, the natural next question is "is this on me or on the system?" There's no link to <code>/status</code>, even though the page exists in the app.</p>
+      </div>
+      <div class="fix"><b>Fix</b> In the footer, alongside the version, add <em>"All systems operational"</em> with a healthy dot, linked to <code>/status</code>. Pull the actual state from the status endpoint so it's never stale.</div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-head">
+        <span class="finding-id">L-09</span>
+        <span class="sev-pill sev-suggest"><span class="dot"></span>Suggestion</span>
+        <span class="finding-title">"Contact your platform owner" link is a dead end</span>
+      </div>
+      <div class="finding-body">
+        <p>It's an <code>href="#"</code>. The user clicks it expecting an email address, a Slack channel, or a runbook. Nothing happens. Worse, this link only appears under the form — not on the error banners themselves, where it would matter most.</p>
+      </div>
+      <div class="fix"><b>Fix</b> Wire it to the configured platform-owner contact (per-org, from the same config that drives the audit-log routing). Mirror the link inside the danger banners for <code>no_role</code> and <code>locked</code>.</div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-head">
+        <span class="finding-id">L-10</span>
+        <span class="sev-pill sev-suggest"><span class="dot"></span>Suggestion</span>
+        <span class="finding-title">Loading / submitting state is missing</span>
+      </div>
+      <div class="finding-body">
+        <p>The "Sign in" button has no busy state. On a slow LDAP bind a user can double-submit, and the SSO redirect can take 1–2 seconds during which nothing acknowledges the click. Both are common sources of "did it work?" support tickets.</p>
+      </div>
+      <div class="fix"><b>Fix</b> Disable both auth buttons on submit and swap the label for an inline spinner + "Signing in…" / "Redirecting to Okta…". Re-enable on response.</div>
+    </div>
+
+    <!-- NITS -->
+    <div class="section-rule">
+      <h2>Nits</h2>
+      <span class="rule"></span>
+    </div>
+
+    <div class="finding">
+      <div class="finding-head">
+        <span class="finding-id">L-11</span>
+        <span class="sev-pill sev-nit"><span class="dot"></span>Nit</span>
+        <span class="finding-title">Bullet caret on the SSO chevron</span>
+      </div>
+      <div class="finding-body">
+        <p>The directory "Sign in" button has a right-arrow chevron; the SSO button doesn't. Inconsistent. SSO is the redirect that <em>actually</em> takes the user away from the page, so it's the one that semantically deserves the chevron.</p>
+      </div>
+      <div class="fix"><b>Fix</b> Move the chevron to the SSO button. Keep the directory submit button clean.</div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-head">
+        <span class="finding-id">L-12</span>
+        <span class="sev-pill sev-nit"><span class="dot"></span>Nit</span>
+        <span class="finding-title">Footer copy is unintentionally adversarial</span>
+      </div>
+      <div class="finding-body">
+        <p><em>"Internal tool. Authorized employees only."</em> is correct, but it's the only sentence on the page in a defensive tone. On a page that otherwise feels welcoming, it lands harder than intended.</p>
+      </div>
+      <div class="fix"><b>Fix</b> Swap to <em>"For Acme employees only · Privacy &amp; data handling →"</em> with the second half linked to the data-handling note.</div>
+    </div>
+
+    <!-- Summary -->
+    <div class="section-rule">
+      <h2>If you only fix three things</h2>
+      <span class="rule"></span>
+    </div>
+    <div class="finding-body" style="font-size: 15px;">
+      <ol style="padding-left: 22px;">
+        <li class="mt-1"><strong>L-01</strong> — Rewrite the LDAP-unreachable banner before pilot. Security risk, fast fix.</li>
+        <li class="mt-1"><strong>L-04</strong> — Add show-password. Single highest-impact UX nit; users will notice its absence.</li>
+        <li class="mt-1"><strong>L-05</strong> — Make the right column responsive. Half your pilot users will see this page on a sub-1024px viewport.</li>
+      </ol>
+    </div>
+
+    <div class="section-rule">
+      <h2>Will people love this page?</h2>
+      <span class="rule"></span>
+    </div>
+    <div class="finding-body prose-body" style="font-size: 15px;">
+      <p>Engineers won't <em>love</em> a login page — they'll love the product behind it. What this page needs to do is: (a) earn trust in the first three seconds, (b) get out of the way for repeat visits, (c) not make a bad day worse on the error path.</p>
+      <p>The current draft does (b) well, half-does (a) thanks to the right-column preview, and outright fails (c) because the error vocabulary leaks internal information and the recovery paths are dead ends. Address the blocker and the four issues and this page goes from "competent" to "the kind of internal tool people quietly tell each other about."</p>
+    </div>
+
+    <p class="mt-12 t-caption c-text-faint text-center">
+      End of review · 12 findings · ready for triage
+    </p>
+  </main>
+</body>
+</html>

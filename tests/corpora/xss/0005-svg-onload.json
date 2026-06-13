@@ -1,0 +1,7 @@
+{
+  "id": "xss-0005-svg-onload",
+  "field": "body",
+  "input": "<svg onload=alert(1)>",
+  "expected_escaped_output": "<svg onload=alert(1)>",
+  "notes": "Self-executing SVG payload — common XSS vector that bypasses CSPs blocking inline <script>. React's JSX must render this as a text node; no <svg> element should reach the DOM."
+}

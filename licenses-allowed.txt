@@ -1,0 +1,10 @@
+MIT
+Apache-2.0
+BSD-3-Clause
+BSD-2-Clause
+0BSD
+ISC
+CC0-1.0
+Unlicense
+Python-2.0
+BlueOak-1.0.0

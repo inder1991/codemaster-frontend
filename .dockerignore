@@ -1,0 +1,12 @@
+.git
+.next
+node_modules
+storybook-static
+test-results
+playwright-report
+coverage
+.env.local
+.env*.local
+*.tsbuildinfo
+.DS_Store
+

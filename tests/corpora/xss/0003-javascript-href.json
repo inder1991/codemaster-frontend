@@ -1,0 +1,7 @@
+{
+  "id": "xss-0003-javascript-href",
+  "field": "body",
+  "input": "javascript:void(document.cookie)",
+  "expected_escaped_output": "javascript:void(document.cookie)",
+  "notes": "Pseudo-protocol payload. The finding body must NOT be wired to an <a href={body}> — neither today nor on a future iteration. The test verifies no anchor tag is constructed from this string."
+}

@@ -1,0 +1,207 @@
+/*
+ * Copied verbatim from frontend/src/app/globals.css of inder1991/codemaster.
+ * This is the locked design-token CSS that all UI in the project consumes.
+ *
+ * Type scale: .t-display .t-h2 .t-h3 .t-body-large .t-body .t-body-strong
+ *             .t-meta .t-caption .t-numeric-large .t-numeric-body
+ *
+ * Foreground:  .c-text-primary .c-text-muted .c-text-faint .c-text-inverse
+ *              .c-text-accent .c-text-on-solid
+ * Background:  .c-bg-surface .c-bg-elevated .c-bg-muted .c-bg-accent
+ *              .c-bg-accent-solid
+ * Border:      .c-border-default .c-border-strong
+ * Hover:       .c-hover-bg .c-hover-bg-elevated
+ *              .c-hover-text-primary .c-hover-text-muted
+ * Status fg:   .c-status-{healthy,degraded,down,info,dim}
+ * Status bg:   .c-statusbg-{healthy,degraded,down,info,dim}
+ * Status dot:  .c-statusdot-{healthy,degraded,down,info,dim}
+ * Divider:     .c-divider (used inside .divide-y wrappers)
+ * Focus ring:  .c-accent-ring
+ */
+
+html, body { height: 100%; }
+
+html {
+  font-family: "Inter", "Inter Tight", system-ui, sans-serif;
+  font-feature-settings: "cv11" 1, "ss01" 1;
+}
+
+body {
+  background-color: oklch(97% 0.018 80);
+  color: oklch(15% 0.015 80);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.dark body {
+  background-color: oklch(18% 0.01 270);
+  color: oklch(95% 0.005 80);
+}
+
+::selection {
+  background-color: oklch(94% 0.06 65);
+  color: oklch(15% 0.015 80);
+}
+
+.dark ::selection {
+  background-color: oklch(28% 0.08 65);
+  color: oklch(95% 0.005 80);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid oklch(72% 0.16 65);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Type scale */
+.t-display     { font-size: 34px; line-height: 1.15; letter-spacing: -0.02em;  font-weight: 800; }
+.t-h2          { font-size: 22px; line-height: 1.25; letter-spacing: -0.015em; font-weight: 600; }
+.t-h3          { font-size: 17px; line-height: 1.3;  letter-spacing: -0.01em;  font-weight: 600; }
+.t-body-large  { font-size: 15px; line-height: 1.55; }
+.t-body        { font-size: 14px; line-height: 1.55; }
+.t-body-strong { font-size: 14px; line-height: 1.55; font-weight: 600; }
+.t-meta        { font-size: 13px; line-height: 1.4;  font-weight: 500; }
+.t-caption     { font-size: 12px; line-height: 1.35; letter-spacing: 0.02em; }
+.t-numeric-large { font-size: 28px; line-height: 1; letter-spacing: -0.01em; font-weight: 600; font-variant-numeric: tabular-nums; }
+.t-numeric-body  { font-size: 14px; line-height: 1.55; font-weight: 500;     font-variant-numeric: tabular-nums; }
+
+/* Foregrounds */
+.c-text-primary { color: oklch(15% 0.015 80); }
+.dark .c-text-primary { color: oklch(95% 0.005 80); }
+
+.c-text-muted { color: oklch(42% 0.012 80); }
+.dark .c-text-muted { color: oklch(70% 0.008 80); }
+
+.c-text-faint { color: oklch(58% 0.01 80); }
+.dark .c-text-faint { color: oklch(55% 0.006 80); }
+
+.c-text-inverse { color: oklch(97% 0.018 80); }
+
+.c-text-accent { color: oklch(60% 0.18 65); }
+.dark .c-text-accent { color: oklch(76% 0.14 65); }
+
+.c-text-on-solid { color: oklch(97% 0.018 80); }
+
+/* Backgrounds */
+.c-bg-surface { background-color: oklch(97% 0.018 80); }
+.dark .c-bg-surface { background-color: oklch(18% 0.01 270); }
+
+.c-bg-elevated { background-color: oklch(99% 0.008 80); }
+.dark .c-bg-elevated { background-color: oklch(22% 0.012 270); }
+
+.c-bg-muted { background-color: oklch(92% 0.028 80); }
+.dark .c-bg-muted { background-color: oklch(26% 0.014 270); }
+
+.c-bg-accent { background-color: oklch(94% 0.06 65); }
+.dark .c-bg-accent { background-color: oklch(28% 0.08 65); }
+
+.c-bg-accent-solid { background-color: oklch(72% 0.16 65); }
+.dark .c-bg-accent-solid { background-color: oklch(76% 0.14 65); }
+.c-bg-accent-solid:hover { background-color: oklch(67% 0.16 65); }
+.dark .c-bg-accent-solid:hover { background-color: oklch(70% 0.14 65); }
+
+/* Borders */
+.c-border-default { border-color: oklch(88% 0.022 80); }
+.dark .c-border-default { border-color: oklch(30% 0.012 270); }
+
+.c-border-strong { border-color: oklch(78% 0.025 80); }
+.dark .c-border-strong { border-color: oklch(40% 0.014 270); }
+
+/* Hover bgs */
+.c-hover-bg:hover { background-color: oklch(92% 0.028 80); }
+.dark .c-hover-bg:hover { background-color: oklch(26% 0.014 270); }
+
+.c-hover-bg-elevated:hover { background-color: oklch(95% 0.022 80); }
+.dark .c-hover-bg-elevated:hover { background-color: oklch(30% 0.014 270); }
+
+/* Hover fgs */
+.c-hover-text-primary:hover { color: oklch(15% 0.015 80); }
+.dark .c-hover-text-primary:hover { color: oklch(95% 0.005 80); }
+
+.c-hover-text-muted:hover { color: oklch(42% 0.012 80); }
+.dark .c-hover-text-muted:hover { color: oklch(80% 0.008 80); }
+
+/* Status fg */
+.c-status-healthy  { color: oklch(48% 0.13 165); }
+.dark .c-status-healthy  { color: oklch(76% 0.13 165); }
+.c-status-degraded { color: oklch(50% 0.14 80); }
+.dark .c-status-degraded { color: oklch(82% 0.16 80); }
+.c-status-down     { color: oklch(52% 0.18 25); }
+.dark .c-status-down     { color: oklch(70% 0.18 25); }
+.c-status-info     { color: oklch(50% 0.14 235); }
+.dark .c-status-info     { color: oklch(74% 0.13 235); }
+.c-status-dim      { color: oklch(50% 0.07 320); }
+.dark .c-status-dim      { color: oklch(74% 0.06 320); }
+
+/* Status bg */
+.c-statusbg-healthy  { background-color: oklch(94% 0.05 165); }
+.dark .c-statusbg-healthy  { background-color: oklch(26% 0.08 165); }
+.c-statusbg-degraded { background-color: oklch(94% 0.06 80); }
+.dark .c-statusbg-degraded { background-color: oklch(26% 0.10 80); }
+.c-statusbg-down     { background-color: oklch(94% 0.06 25); }
+.dark .c-statusbg-down     { background-color: oklch(26% 0.10 25); }
+.c-statusbg-info     { background-color: oklch(94% 0.05 235); }
+.dark .c-statusbg-info     { background-color: oklch(26% 0.08 235); }
+.c-statusbg-dim      { background-color: oklch(94% 0.03 320); }
+.dark .c-statusbg-dim      { background-color: oklch(26% 0.05 320); }
+
+/* Status dot */
+.c-statusdot-healthy  { background-color: oklch(72% 0.13 165); }
+.dark .c-statusdot-healthy  { background-color: oklch(76% 0.13 165); }
+.c-statusdot-degraded { background-color: oklch(78% 0.16 80); }
+.dark .c-statusdot-degraded { background-color: oklch(82% 0.16 80); }
+.c-statusdot-down     { background-color: oklch(60% 0.18 25); }
+.dark .c-statusdot-down     { background-color: oklch(70% 0.18 25); }
+.c-statusdot-info     { background-color: oklch(70% 0.13 235); }
+.dark .c-statusdot-info     { background-color: oklch(74% 0.13 235); }
+.c-statusdot-dim      { background-color: oklch(70% 0.06 320); }
+.dark .c-statusdot-dim      { background-color: oklch(74% 0.06 320); }
+
+/* Neutral chip (for the Badge `neutral` kind) */
+.c-neutral-bg   { background-color: oklch(94% 0.008 80); }
+.dark .c-neutral-bg   { background-color: oklch(28% 0.012 270); }
+.c-neutral-text { color: oklch(45% 0.008 80); }
+.dark .c-neutral-text { color: oklch(80% 0.008 80); }
+.c-neutral-dot  { background-color: oklch(60% 0.006 80); }
+.dark .c-neutral-dot  { background-color: oklch(70% 0.008 80); }
+
+/* Divider */
+.c-divider > * + * { border-top-color: oklch(88% 0.022 80); }
+.dark .c-divider > * + * { border-top-color: oklch(30% 0.012 270); }
+
+.c-accent-ring:focus-visible {
+  outline: 2px solid oklch(72% 0.16 65);
+  outline-offset: 2px;
+}
+
+/* Locked motion durations from tailwind.config.ts */
+.dur-fast { transition-duration: 120ms; }
+.dur-base { transition-duration: 200ms; }
+.dur-slow { transition-duration: 320ms; }
+
+/* Raised elevation (matches design-tokens.ts `elevation.raised`) */
+.elev-raised {
+  box-shadow:
+    0 1px 2px oklch(0% 0 0 / 0.04),
+    0 4px 12px oklch(0% 0 0 / 0.06);
+}
+.dark .elev-raised {
+  box-shadow:
+    0 1px 2px oklch(0% 0 0 / 0.20),
+    0 4px 12px oklch(0% 0 0 / 0.30);
+}
+
+/* Mono stack (used for code paths) */
+.font-mono {
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Monaco, Consolas, monospace;
+}
