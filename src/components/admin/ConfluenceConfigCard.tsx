@@ -89,10 +89,17 @@ export function ConfluenceConfigCard() {
   return (
     <Card padding="md" data-testid="confluence-config-card">
       <h2 className={cn(t.h2, colors.text.primary)}>Confluence</h2>
-      <p className={cn("mt-1", t.body, colors.text.muted)}>
-        {configured
-          ? `Configured (${configQuery.data?.baseUrl ?? "?"}). Re-enter the API token to rotate.`
-          : "Not configured — add the Confluence base URL + API token to enable knowledge ingestion."}
+      <p
+        className={cn("mt-1", t.body, configQuery.isError ? colors.status.down : colors.text.muted)}
+        data-testid="confluence-config-status"
+      >
+        {configQuery.isLoading
+          ? "Loading the current Confluence configuration…"
+          : configQuery.isError
+            ? "Couldn't load the current Confluence configuration (it may still be set). You can (re)enter it below."
+            : configured
+              ? `Configured (${configQuery.data?.baseUrl ?? "?"}). Re-enter the API token to rotate.`
+              : "Not configured — add the Confluence base URL + API token to enable knowledge ingestion."}
       </p>
 
       <form onSubmit={handleSave} className="mt-4 space-y-3">
