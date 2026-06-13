@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -49,12 +49,16 @@ export function ConfluenceConfigCard() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
 
-  // Prefill the non-secret fields from the GET; the token stays empty (write-only — re-enter to rotate).
+  // Prefill the non-secret fields from the GET ONCE (the token stays empty — write-only, re-enter to rotate).
+  // Hydrate-once via a ref: deps on [configQuery.data] would re-run on every refetch (post-save invalidation,
+  // or a remount after staleTime) and CLOBBER the operator's in-progress edits to these fields.
+  const hydrated = useRef(false);
   useEffect(() => {
-    if (configQuery.data?.configured) {
+    if (!hydrated.current && configQuery.data?.configured) {
       setBaseUrl(configQuery.data.baseUrl ?? "");
       setAuthEmail(configQuery.data.authEmail ?? "");
       setEnabled(configQuery.data.enabled ?? true);
+      hydrated.current = true;
     }
   }, [configQuery.data]);
 
