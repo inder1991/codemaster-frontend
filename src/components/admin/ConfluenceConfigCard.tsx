@@ -33,6 +33,15 @@ function FieldLabel({ htmlFor, children }: { htmlFor: string; children: React.Re
 
 const INPUT_CLASS = "w-full px-3 py-2 rounded border";
 
+/** Map a thrown save error to an operator-friendly message — a fetch-timeout aborts with a DOMException
+ *  whose message is misleading; surface a clear timeout instead. */
+function toSaveErrorMessage(err: unknown): string {
+  if (err instanceof DOMException && err.name === "AbortError") {
+    return "Save timed out — check your connection and try again.";
+  }
+  return err instanceof Error ? err.message : "Save failed";
+}
+
 export function ConfluenceConfigCard() {
   const queryClient = useQueryClient();
   const configQuery = useQuery({
@@ -83,10 +92,16 @@ export function ConfluenceConfigCard() {
       await queryClient.invalidateQueries({ queryKey: CONFLUENCE_CONFIG_QUERY_KEYS.all });
       await queryClient.invalidateQueries({ queryKey: CONFIG_STATUS_QUERY_KEYS.all });
     } catch (err: unknown) {
-      setSaveError(err instanceof Error ? err.message : "Save failed");
+      setSaveError(toSaveErrorMessage(err));
     } finally {
       setIsSaving(false);
     }
+  }
+
+  // Clear a stale Saved/error banner the moment the operator edits a field (review P2).
+  function clearSaveStatus(): void {
+    setSaveSuccess(false);
+    setSaveError(null);
   }
 
   const configured = configQuery.data?.configured === true;
@@ -117,7 +132,10 @@ export function ConfluenceConfigCard() {
             id="cf-base-url"
             type="url"
             value={baseUrl}
-            onChange={(e) => setBaseUrl(e.target.value)}
+            onChange={(e) => {
+              setBaseUrl(e.target.value);
+              clearSaveStatus();
+            }}
             placeholder="https://acme.atlassian.net/wiki"
             required
             className={cn(INPUT_CLASS, colors.divider, colors.bg.surface, t.body)}
@@ -131,7 +149,10 @@ export function ConfluenceConfigCard() {
             id="cf-auth-email"
             type="email"
             value={authEmail}
-            onChange={(e) => setAuthEmail(e.target.value)}
+            onChange={(e) => {
+              setAuthEmail(e.target.value);
+              clearSaveStatus();
+            }}
             placeholder="bot@acme.com"
             autoComplete="off"
             className={cn(INPUT_CLASS, colors.divider, colors.bg.surface, t.body)}
@@ -143,7 +164,10 @@ export function ConfluenceConfigCard() {
             id="cf-token"
             type="password"
             value={token}
-            onChange={(e) => setToken(e.target.value)}
+            onChange={(e) => {
+              setToken(e.target.value);
+              clearSaveStatus();
+            }}
             required={!configured}
             autoComplete="off"
             placeholder={configured ? "•••••••• (leave blank to keep)" : undefined}
@@ -154,7 +178,10 @@ export function ConfluenceConfigCard() {
           <input
             type="checkbox"
             checked={enabled}
-            onChange={(e) => setEnabled(e.target.checked)}
+            onChange={(e) => {
+              setEnabled(e.target.checked);
+              clearSaveStatus();
+            }}
           />
           <span className={cn(t.body, colors.text.primary)}>Enabled</span>
         </label>
@@ -164,7 +191,7 @@ export function ConfluenceConfigCard() {
             {saveError}
           </p>
         ) : null}
-        {saveSuccess ? (
+        {saveSuccess && !isSaving ? (
           <p className={cn(t.meta, colors.status.healthy)} data-testid="confluence-config-success">
             Saved — the runtime will pick up the new credentials.
           </p>
