@@ -14,7 +14,7 @@ import { AdminApiError } from "@/lib/api/admin";
 
 // ── Wire types ────────────────────────────────────────────────────
 
-export type ConfigStatusState = "configured" | "pending";
+export type ConfigStatusState = "configured" | "disabled" | "pending";
 export type ConfigStatusSource = "db" | "env" | "file" | "none";
 
 export interface ConfigStatusItem {

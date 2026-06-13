@@ -90,7 +90,14 @@ export default function SetupPage() {
 
 function ChecklistRow({ item }: { item: ConfigStatusItem }) {
   const configured = item.state === "configured";
+  const disabled = item.state === "disabled";
+  // configured → check; disabled → saved but turned off (creds exist), still flag it's not live; pending → warn.
   const Icon = configured ? CheckCircleIcon : ExclamationTriangleIcon;
+  const label = configured
+    ? `configured · ${item.source}`
+    : disabled
+      ? `configured but disabled · ${item.source}`
+      : "pending";
   return (
     <li
       className="flex items-start gap-x-3"
@@ -114,8 +121,9 @@ function ChecklistRow({ item }: { item: ConfigStatusItem }) {
           t.meta,
           configured ? colors.text.muted : colors.status.degraded,
         )}
+        data-testid={`config-status-state-${item.key}`}
       >
-        {configured ? `configured · ${item.source}` : "pending"}
+        {label}
       </span>
     </li>
   );
