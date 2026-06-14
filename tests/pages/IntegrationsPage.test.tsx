@@ -427,92 +427,33 @@ describe("IntegrationsPage — wiring", () => {
     expect(new URL(capturedUrl!, "http://localhost").searchParams.has("installation_id")).toBe(false);
   });
 
-  // ── T5.7 — PlatformCredentialsCard on /integrations page ─────────
+  // ── Confluence credentials card moved to /admin/setup (129762d — the single write path).
+  //    /integrations manages ingestion/spaces only, so the card must NOT render here. ──────
 
-  it("renders PlatformCredentialsCard for confluence provider above the table", async () => {
-    // T5.7 spec §9: the credentials card must appear above the
-    // integrations table. We verify the card's test-id is present and
-    // that it appears in the DOM before the table section.
-    mockFetch(async (url: string | URL | Request) => {
-      const u =
-        typeof url === "string"
-          ? url
-          : url instanceof URL
-            ? url.toString()
-            : (url as Request).url;
-      // Respond to the platform-credentials meta fetch (no token present).
-      if (u.includes("/api/admin/platform-credentials/confluence")) {
-        return jsonResponse({
-          credential_key: "confluence",
-          token_present: false,
-          base_url: null,
-          last_rotated_at: null,
-          last_rotated_by: null,
-          last_validated_at: null,
-          last_validation_error: null,
-        });
-      }
-      // Integrations list + quarantine probes.
-      return jsonResponse({ rows: [], next_cursor: null });
-    });
+  it("does NOT render the confluence credentials card (it moved to /admin/setup)", async () => {
+    mockFetch(async () => jsonResponse({ rows: [], next_cursor: null }));
 
     renderPage();
 
-    // The card renders immediately (its own loading state) and the
-    // test-id is always present.
-    const card = await screen.findByTestId(
-      "platform-credentials-card-confluence",
-    );
-    expect(card).toBeInTheDocument();
-
-    // The card must appear above the integrations table / empty-state.
-    // findByTestId returning truthy is sufficient for presence; DOM order
-    // is asserted by checking the card is before the table section via
-    // compareDocumentPosition.
-    const emptyState = await screen.findByText(/No integrations yet/i);
+    // Let the integrations section settle (empty state), then assert the card is absent.
+    await screen.findByText(/No integrations yet/i);
     expect(
-      card.compareDocumentPosition(emptyState) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+      screen.queryByTestId("platform-credentials-card-confluence"),
+    ).toBeNull();
   });
 
-  it("existing integrations table still renders below when list is non-empty", async () => {
-    // T5.7 — verifies the card + table coexist correctly.
-    mockFetch(async (url: string | URL | Request) => {
-      const u =
-        typeof url === "string"
-          ? url
-          : url instanceof URL
-            ? url.toString()
-            : (url as Request).url;
-      if (u.includes("/api/admin/platform-credentials/confluence")) {
-        return jsonResponse({
-          credential_key: "confluence",
-          token_present: false,
-          base_url: null,
-          last_rotated_at: null,
-          last_rotated_by: null,
-          last_validated_at: null,
-          last_validation_error: null,
-        });
-      }
-      // One integration so the table renders (not the empty state).
-      return jsonResponse({ rows: [makeIntegration()], next_cursor: null });
-    });
+  it("renders the integrations table (without the credentials card) when the list is non-empty", async () => {
+    mockFetch(async () =>
+      jsonResponse({ rows: [makeIntegration()], next_cursor: null }),
+    );
 
     renderPage();
 
-    const card = await screen.findByTestId(
-      "platform-credentials-card-confluence",
-    );
-    expect(card).toBeInTheDocument();
-
-    // Integration row renders below the card.
-    const spaceRow = await screen.findByText("Acme Engineering Wiki");
-    expect(spaceRow).toBeInTheDocument();
     expect(
-      card.compareDocumentPosition(spaceRow) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+      await screen.findByText("Acme Engineering Wiki"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("platform-credentials-card-confluence"),
+    ).toBeNull();
   });
 });
