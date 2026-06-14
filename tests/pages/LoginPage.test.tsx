@@ -14,6 +14,7 @@
  *   * SSO button is a visual stub for v0; click surfaces sso_failed.
  */
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
   fireEvent,
@@ -24,6 +25,7 @@ import {
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import LoginPage from "@/app/login/page";
+import { SESSION_QUERY_KEY } from "@/lib/auth/use-session";
 
 const mockPush = vi.fn();
 const mockReplace = vi.fn();
@@ -50,6 +52,21 @@ function mockFetch(handler: (url: string, init?: RequestInit) => Response): void
       return handler(url, init);
     },
   );
+}
+
+// LoginPage now uses useQueryClient() (to invalidate the session cache on login),
+// so it must render under a QueryClientProvider.
+function renderLogin(client?: QueryClient) {
+  const qc =
+    client ?? new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return {
+    qc,
+    ...render(
+      <QueryClientProvider client={qc}>
+        <LoginPage />
+      </QueryClientProvider>,
+    ),
+  };
 }
 
 beforeEach(() => {
@@ -82,7 +99,7 @@ describe("LoginPage render + preflight (X.2)", () => {
       return new Response("", { status: 404 });
     });
 
-    render(<LoginPage />);
+    renderLogin();
 
     await waitFor(() => {
       expect(seen).toContain("/api/auth/csrf");
@@ -97,7 +114,7 @@ describe("LoginPage render + preflight (X.2)", () => {
       }),
     );
 
-    render(<LoginPage />);
+    renderLogin();
 
     expect(
       screen.getByRole("heading", { name: /sign in/i }),
@@ -121,7 +138,7 @@ describe("LoginPage render + preflight (X.2)", () => {
       }),
     );
 
-    render(<LoginPage />);
+    renderLogin();
 
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith("/login?next=%2Freviews");
@@ -162,7 +179,7 @@ describe("LoginPage submit (X.2)", () => {
       return new Response("", { status: 404 });
     });
 
-    render(<LoginPage />);
+    renderLogin();
 
     // Wait for preflight to seed the csrfToken state.
     await waitFor(() => {
@@ -198,6 +215,56 @@ describe("LoginPage submit (X.2)", () => {
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/"));
   });
 
+  test("invalidates the stale session cache on success so the post-login route re-checks /me", async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    // Reproduce the stale "not signed in" cache primed at initial load:
+    // useSession() fetched /me → 401 → cached null (fresh within staleTime).
+    qc.setQueryData(SESSION_QUERY_KEY, null);
+    const invalidateSpy = vi.spyOn(qc, "invalidateQueries");
+
+    mockFetch((url) => {
+      if (url.endsWith("/api/auth/csrf")) {
+        return new Response(
+          JSON.stringify({ schema_version: 1, token: CSRF_TOKEN }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (url.endsWith("/api/auth/login")) {
+        return new Response(
+          JSON.stringify({
+            schema_version: 1,
+            user_id: "u1",
+            role: "super_admin",
+            expires_at: "2026-05-12T00:00:00Z",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return new Response("", { status: 404 });
+    });
+
+    renderLogin(qc);
+
+    fireEvent.change(screen.getByLabelText("Username"), {
+      target: { value: "admin" },
+    });
+    fireEvent.change(screen.getByLabelText("Password"), {
+      target: { value: "secret" },
+    });
+    await act(async () => {
+      fireEvent.submit(
+        screen.getByRole("button", { name: /^sign in$/i }).closest("form")!,
+      );
+    });
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/"));
+    // Without invalidation, the post-login redirect reads the cached null and
+    // bounces straight back to /login (the intermittent-login bug).
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: SESSION_QUERY_KEY });
+  });
+
   test("validated ?next=/cost-caps is honored", async () => {
     mockSearchParams.set("next", "/cost-caps");
     mockFetch((url) => {
@@ -221,7 +288,7 @@ describe("LoginPage submit (X.2)", () => {
       return new Response("", { status: 404 });
     });
 
-    render(<LoginPage />);
+    renderLogin();
 
     fireEvent.change(screen.getByLabelText("Username"), {
       target: { value: "admin" },
@@ -268,7 +335,7 @@ describe("LoginPage submit (X.2)", () => {
       return new Response("", { status: 404 });
     });
 
-    render(<LoginPage />);
+    renderLogin();
 
     fireEvent.change(screen.getByLabelText("Username"), {
       target: { value: "admin" },
@@ -309,7 +376,7 @@ describe("LoginPage error mapping (X.2)", () => {
       return new Response("", { status: 404 });
     });
 
-    render(<LoginPage />);
+    renderLogin();
 
     fireEvent.change(screen.getByLabelText("Username"), {
       target: { value: "u" },
@@ -338,7 +405,7 @@ describe("LoginPage error mapping (X.2)", () => {
       return new Response("{}", { status: 423 });
     });
 
-    render(<LoginPage />);
+    renderLogin();
 
     fireEvent.change(screen.getByLabelText("Username"), {
       target: { value: "u" },
@@ -368,7 +435,7 @@ describe("LoginPage affordances (X.2)", () => {
         status: 200,
       }),
     );
-    render(<LoginPage />);
+    renderLogin();
 
     const password = screen.getByLabelText("Password") as HTMLInputElement;
     expect(password.type).toBe("password");
@@ -390,7 +457,7 @@ describe("LoginPage affordances (X.2)", () => {
         status: 200,
       }),
     );
-    render(<LoginPage />);
+    renderLogin();
 
     act(() => {
       screen.getByRole("button", { name: /continue with sso/i }).click();
@@ -406,7 +473,7 @@ describe("LoginPage affordances (X.2)", () => {
         status: 200,
       }),
     );
-    render(<LoginPage />);
+    renderLogin();
 
     expect(
       screen.getByRole("heading", { name: /welcome back/i }),

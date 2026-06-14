@@ -36,9 +36,11 @@
 
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import type { JSX } from "react";
 
 import { Button } from "@/components/ui/elements/Button";
+import { SESSION_QUERY_KEY } from "@/lib/auth/use-session";
 import { cn } from "@/lib/cn";
 import {
   colors,
@@ -84,6 +86,7 @@ function isSafeRelativeNext(value: string | null): value is string {
 
 export default function LoginPage(): JSX.Element {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const initialError = searchParams.get("error");
   const reason = searchParams.get("reason");
@@ -170,6 +173,11 @@ export default function LoginPage(): JSX.Element {
       });
 
       if (res.status === 200) {
+        // Invalidate the cached /api/auth/me result (primed `null` at initial load) so the
+        // post-login redirect re-checks the session and sees the now-authenticated user.
+        // Without this, the stale cached `null` bounces straight back to /login — intermittent
+        // only because it refetched once the 60s staleTime lapsed (see use-session.ts).
+        await queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
         router.push(nextParam ?? "/");
         return;
       }
