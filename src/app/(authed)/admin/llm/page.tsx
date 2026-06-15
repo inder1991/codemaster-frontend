@@ -7,7 +7,7 @@
  *
  * T5.8 (Sprint 26 embedder lifecycle) — wraps the existing dual-card
  * Bedrock/Anthropic UI as the "Inference" tab and adds an "Embedding"
- * tab housing the Qwen platform credentials card + EmbedderLifecyclePanel.
+ * tab housing the embedder provider config card + EmbedderLifecyclePanel.
  *
  * PART 3 layout redesign — uses <SettingsSection> rail layout replacing the
  * old 2-column grid. Three sections in the Inference tab:
@@ -15,20 +15,18 @@
  *   - "Model catalog" → LlmModelCatalogCard.
  *   - "Job routing" → LlmJobRoutingCard.
  * Two sections in the Embedding tab:
- *   - "Platform credentials" → PlatformCredentialsCard.
+ *   - "Embedding provider" → EmbedderConfigCard.
  *   - "Re-embed lifecycle" → EmbedderLifecyclePanel.
  *
  * PART 2 — lifted model list: the page owns `models` + `refreshModels` and
  * passes them to both LlmModelCatalogCard and LlmJobRoutingCard so a model
  * validated in the catalog immediately becomes selectable in Job Routing.
  *
- * v1 note (spec §9): the <ModelNamePicker> rendered as `extraFields` on
- * the Qwen credentials card is operator-facing form input only — it lets
- * the operator visually confirm WHICH model THIS card's credentials
- * support. It is NOT plumbed into the PATCH payload (Vault stores only
- * {base_url, api_key}). The live active model lives in
- * `core.embedder_runtime_state.active_model_name` and is rotated via
- * POST /reembed/start (the embedder workflow updates it).
+ * Embedder config (DB-backed; replaces the old Vault `embedder.qwen` card):
+ * EmbedderConfigCard owns the base URL + model + (optional) API key. Unlike
+ * the old card, the selected model IS the live model — Save stages it and
+ * Test promotes it into `core.embedder_runtime_state.active_model_name`
+ * (recorded as provenance), no redeploy.
  */
 
 "use client";
@@ -42,12 +40,11 @@ import {
 } from "@headlessui/react";
 import { useCallback, useEffect, useState, type JSX } from "react";
 
+import { EmbedderConfigCard } from "@/components/admin/EmbedderConfigCard";
 import { EmbedderLifecyclePanel } from "@/components/admin/EmbedderLifecyclePanel";
 import { LlmJobRoutingCard } from "@/components/admin/LlmJobRoutingCard";
 import { LlmModelCatalogCard } from "@/components/admin/LlmModelCatalogCard";
 import { LlmProviderCard } from "@/components/admin/LlmProviderCard";
-import { ModelNamePicker } from "@/components/admin/ModelNamePicker";
-import { PlatformCredentialsCard } from "@/components/admin/PlatformCredentialsCard";
 import { SettingsSection } from "@/components/ui/layout/SettingsSection";
 import { listLlmModels, type LlmModelV1 } from "@/lib/api/llm-models";
 import { cn } from "@/lib/cn";
@@ -56,9 +53,6 @@ import { colors, type as t } from "@/lib/design-tokens";
 const TABS = ["Inference", "Embedding"] as const;
 
 export default function LlmProviderConfigPage(): JSX.Element {
-  // Operator-form-entry only. NOT plumbed into PATCH payload (spec §9).
-  const [qwenModelName, setQwenModelName] = useState<string>("qwen3-embed-0.6b");
-
   // PART 2 — shared model list lifted from LlmModelCatalogCard +
   // LlmJobRoutingCard. Both cards now receive this list so a model
   // validated in the catalog immediately appears in routing options.
@@ -164,29 +158,10 @@ export default function LlmProviderConfigPage(): JSX.Element {
           >
             <SettingsSection
               first
-              title="Platform credentials"
-              description="Qwen embedding provider credentials — stored in Vault."
+              title="Embedding provider"
+              description="Configure the embedding model + endpoint. The model you Save and Test becomes ACTIVE and is what embeds the corpus — set it before ingesting content."
             >
-              <PlatformCredentialsCard
-                provider="embedder.qwen"
-                extraFields={
-                  <div className="space-y-2">
-                    <ModelNamePicker
-                      value={qwenModelName}
-                      onChange={setQwenModelName}
-                    />
-                    <p
-                      className={cn(t.caption, colors.text.faint)}
-                      data-testid="qwen-model-picker-note"
-                    >
-                      Operator reference only. Vault stores credentials
-                      ({"{base_url, api_key}"}) — the active model is
-                      rotated via Start re-embed (below), which updates{" "}
-                      <code>embedder_runtime_state.active_model_name</code>.
-                    </p>
-                  </div>
-                }
-              />
+              <EmbedderConfigCard />
             </SettingsSection>
             <SettingsSection
               title="Re-embed lifecycle"
