@@ -377,8 +377,9 @@ export async function listPurposeRouting(): Promise<LlmPurposeModelV1[]> {
         null,
       );
     }
-    const json = (await res.json()) as { assignments: LlmPurposeModelV1[] };
-    return json.assignments;
+    const json = (await res.json()) as { assignments?: LlmPurposeModelV1[] };
+    // Defend against a malformed/partial body — mirrors the guard in listLlmModels.
+    return Array.isArray(json?.assignments) ? json.assignments : [];
   } finally {
     clearTimeout(timer);
   }

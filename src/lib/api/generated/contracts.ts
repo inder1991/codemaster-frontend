@@ -691,6 +691,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/llm-purpose-routing/{purpose}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["admin_llm_purpose_routing_delete_api_admin_llm_purpose_routing_purpose_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/members": {
         parameters: {
             query?: never;
@@ -2634,7 +2650,7 @@ export interface components {
              */
             schema_version: 1;
             /** @enum {string} */
-            purpose: "review_summary" | "review_finding" | "chat_reply" | "walkthrough" | "redaction_check" | "cost_estimate" | "analysis_curator";
+            purpose: "review_finding" | "walkthrough" | "analysis_curator" | "fix_prompt";
             model_id: string;
         };
         LlmPurposeModelListV1: {
@@ -2653,7 +2669,7 @@ export interface components {
              */
             schema_version: 1;
             /** @enum {string} */
-            purpose: "review_summary" | "review_finding" | "chat_reply" | "walkthrough" | "redaction_check" | "cost_estimate" | "analysis_curator";
+            purpose: "review_summary" | "review_finding" | "chat_reply" | "walkthrough" | "redaction_check" | "cost_estimate" | "analysis_curator" | "fix_prompt";
             model_id: string;
         };
         LoginRequestV1: {
@@ -6622,6 +6638,47 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    admin_llm_purpose_routing_delete_api_admin_llm_purpose_routing_purpose_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                purpose: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

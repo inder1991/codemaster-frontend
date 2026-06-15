@@ -24,6 +24,7 @@
 
 import { useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/elements/Button";
 import { Card } from "@/components/ui/elements/Card";
 import { AdminApiError } from "@/lib/api/admin";
 import {
@@ -80,6 +81,12 @@ export function LlmJobRoutingCard({ models }: LlmJobRoutingCardProps) {
     null,
   );
   const [rowSuccess, setRowSuccess] = useState<LlmPurpose | null>(null);
+
+  // Orphan (unrecognized) purpose reset state.
+  const [busyOrphan, setBusyOrphan] = useState<string | null>(null);
+  const [orphanError, setOrphanError] = useState<{ purpose: string; message: string } | null>(
+    null,
+  );
 
   async function refreshRouting() {
     setLoading(true);
@@ -139,7 +146,26 @@ export function LlmJobRoutingCard({ models }: LlmJobRoutingCardProps) {
     }
   }
 
+  async function handleResetOrphan(purpose: string) {
+    setBusyOrphan(purpose);
+    setOrphanError(null);
+    try {
+      await deletePurposeRouting(purpose);
+      await refreshRouting();
+    } catch (err: unknown) {
+      setOrphanError({ purpose, message: mutationErrorMessage(err) });
+    } finally {
+      setBusyOrphan(null);
+    }
+  }
+
   const options = assignableModels(models);
+
+  // Purposes in `assignments` that are NOT in the known PURPOSES list.
+  const knownPurposeSet = new Set(PURPOSES.map((p) => p.purpose));
+  const orphanKeys = Object.keys(assignments).filter(
+    (p) => !knownPurposeSet.has(p as LlmPurpose),
+  );
 
   return (
     <Card padding="lg" data-testid="llm-job-routing-card">
@@ -237,6 +263,54 @@ export function LlmJobRoutingCard({ models }: LlmJobRoutingCardProps) {
           </p>
         )}
       </div>
+
+      {/* Unrecognized (orphan) assignments from the backend — legacy rows
+          that are not in the 4-purpose PURPOSES list. Show as a muted
+          cleanup affordance so they can be cleared without a page reload. */}
+      {!loading && orphanKeys.length > 0 && (
+        <div
+          className={cn("mt-5 pt-4 border-t", colors.divider)}
+          data-testid="job-routing-orphan-block"
+        >
+          <p className={cn(t.meta, colors.text.muted, "mb-2")}>
+            Unrecognized assignments
+          </p>
+          <div className="space-y-2">
+            {orphanKeys.map((purpose) => (
+              <div
+                key={purpose}
+                className={cn("flex flex-wrap items-center gap-3")}
+                data-testid={`routing-orphan-${purpose}`}
+              >
+                <span className={cn(t.body, colors.text.muted, "font-mono min-w-48")}>
+                  {purpose}
+                </span>
+                <span className={cn(t.caption, colors.text.faint)}>
+                  → {assignments[purpose]}
+                </span>
+                <Button
+                  variant="secondary"
+                  size="xs"
+                  type="button"
+                  disabled={busyOrphan === purpose}
+                  onClick={() => void handleResetOrphan(purpose)}
+                  data-testid={`routing-orphan-reset-${purpose}`}
+                >
+                  {busyOrphan === purpose ? "…" : "Reset"}
+                </Button>
+                {orphanError?.purpose === purpose && (
+                  <span
+                    className={cn(t.caption, colors.status.down)}
+                    data-testid={`routing-orphan-error-${purpose}`}
+                  >
+                    {orphanError.message}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

@@ -250,8 +250,8 @@ export function LlmModelCatalogCard({ models, refreshModels }: LlmModelCatalogCa
   return (
     <Card padding="lg" data-testid="llm-model-catalog-card">
       {/* PART 3 §3: the h3 "Model catalog" heading removed — the
-          SettingsSection rail now owns it. The h4 "Add model" sub-heading
-          is kept per spec. */}
+          SettingsSection rail now owns it. The h3 "Add model" sub-heading
+          is kept per spec (rail h2 → card h3; no heading skip). */}
 
       {loadError && (
         <div
@@ -369,7 +369,7 @@ export function LlmModelCatalogCard({ models, refreshModels }: LlmModelCatalogCa
         className="mt-5 pt-4 border-t space-y-3"
         data-testid="model-add-form"
       >
-        <h4 className={cn(t.bodyStrong, colors.text.primary)}>Add model</h4>
+        <h3 className={cn(t.h3, colors.text.primary)}>Add model</h3>
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <label

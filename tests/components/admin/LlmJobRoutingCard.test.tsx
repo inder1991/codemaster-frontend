@@ -408,4 +408,97 @@ describe("LlmJobRoutingCard", () => {
       "has not passed preflight",
     );
   });
+
+  // Fix 3 — unrecognized (orphan) assignments.
+
+  test("renders an Unrecognized assignments row when GET returns a legacy purpose", async () => {
+    mockFetch(async (url, init) => {
+      const method = init?.method ?? "GET";
+      if (method === "GET" && url.endsWith("/llm-purpose-routing")) {
+        return json({
+          assignments: [{ purpose: "review_summary", model_id: "claude-opus-4" }],
+        });
+      }
+      return new Response(null, { status: 404 });
+    });
+
+    render(<LlmJobRoutingCard models={[]} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("routing-orphan-review_summary")).toBeInTheDocument();
+    });
+
+    // The orphan row should show the purpose and a Reset button.
+    const orphanRow = screen.getByTestId("routing-orphan-review_summary");
+    expect(orphanRow).toBeInTheDocument();
+    expect(screen.getByTestId("routing-orphan-reset-review_summary")).toBeInTheDocument();
+    // Should NOT appear in the normal 4-purpose rows.
+    expect(screen.queryByTestId("job-routing-row-review_summary")).not.toBeInTheDocument();
+  });
+
+  test("clicking Reset on an orphan issues DELETE and re-fetches routing", async () => {
+    const deletedPurposes: string[] = [];
+    let routingFetchCount = 0;
+
+    mockFetch(async (url, init) => {
+      const method = init?.method ?? "GET";
+      if (method === "GET" && url.endsWith("/llm-purpose-routing")) {
+        routingFetchCount += 1;
+        // After the delete the orphan disappears.
+        const assignments =
+          routingFetchCount === 1
+            ? [{ purpose: "review_summary", model_id: "claude-opus-4" }]
+            : [];
+        return json({ assignments });
+      }
+      if (method === "DELETE" && url.includes("/llm-purpose-routing/")) {
+        const purpose = url.split("/llm-purpose-routing/")[1]!;
+        deletedPurposes.push(purpose);
+        return new Response(null, { status: 204 });
+      }
+      return new Response(null, { status: 404 });
+    });
+
+    render(<LlmJobRoutingCard models={[]} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("routing-orphan-reset-review_summary")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("routing-orphan-reset-review_summary"));
+
+    await waitFor(() => {
+      expect(deletedPurposes).toContain("review_summary");
+    });
+
+    // Routing should have been re-fetched after the delete.
+    await waitFor(() => {
+      expect(routingFetchCount).toBeGreaterThanOrEqual(2);
+    });
+
+    // After re-fetch the orphan block disappears.
+    await waitFor(() => {
+      expect(screen.queryByTestId("routing-orphan-review_summary")).not.toBeInTheDocument();
+    });
+  });
+
+  test("does not render the Unrecognized assignments block when there are no orphan keys", async () => {
+    mockFetch(async (url, init) => {
+      const method = init?.method ?? "GET";
+      if (method === "GET" && url.endsWith("/llm-purpose-routing")) {
+        return json({
+          assignments: [{ purpose: "review_finding", model_id: "claude-sonnet-4-6" }],
+        });
+      }
+      return new Response(null, { status: 404 });
+    });
+
+    render(<LlmJobRoutingCard models={[]} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("job-routing-rows")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTestId("job-routing-orphan-block")).not.toBeInTheDocument();
+  });
 });
