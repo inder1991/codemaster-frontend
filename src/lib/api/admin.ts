@@ -137,7 +137,7 @@ export interface ReviewFindingItemV1 {
   category: FindingCategory | null;
   confidence: number | null;
   scope: "chunk_observed" | "cross_chunk" | "pr_global" | null;
-  citations: ReviewFindingCitationV1[];
+  citations?: ReviewFindingCitationV1[];
 }
 
 export interface ActivityEventV1 {

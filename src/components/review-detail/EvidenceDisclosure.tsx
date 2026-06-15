@@ -19,10 +19,10 @@ import { colors, motion, type as t } from "@/lib/design-tokens";
 export function EvidenceDisclosure({
   citations,
 }: {
-  citations: ReviewFindingCitationV1[];
+  citations?: ReviewFindingCitationV1[] | undefined;
 }) {
   const [expanded, setExpanded] = useState(false);
-  if (citations.length === 0) return null;
+  if (!citations || citations.length === 0) return null;
   return (
     <div className="mt-3">
       <button

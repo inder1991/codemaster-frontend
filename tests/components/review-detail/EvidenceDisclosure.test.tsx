@@ -12,6 +12,15 @@ const CITATION: ReviewFindingCitationV1 = {
 };
 
 describe("EvidenceDisclosure", () => {
+  it("renders nothing (and does not throw) when citations is undefined", () => {
+    // The API omits `citations` for findings with no citations (e.g. when
+    // retrieval short-circuits), so the prop can arrive undefined.
+    const { container } = render(
+      <EvidenceDisclosure citations={undefined as never} />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it("renders nothing when there are no citations", () => {
     const { container } = render(<EvidenceDisclosure citations={[]} />);
     expect(container).toBeEmptyDOMElement();

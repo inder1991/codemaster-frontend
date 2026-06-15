@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { ComplianceCard } from "@/components/review-detail/ComplianceCard";
 import type {
   GovernancePanelV1,
+  ReviewFindingCitationV1,
   ReviewFindingItemV1,
 } from "@/lib/api/admin";
 
@@ -44,7 +45,7 @@ function gov(overrides: Partial<GovernancePanelV1> = {}): GovernancePanelV1 {
 }
 
 function finding(
-  citations: ReviewFindingItemV1["citations"],
+  citations: ReviewFindingCitationV1[],
 ): ReviewFindingItemV1 {
   return {
     finding_id: "f1",
