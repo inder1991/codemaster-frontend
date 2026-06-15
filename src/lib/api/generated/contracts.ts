@@ -1882,7 +1882,8 @@ export interface components {
              * @constant
              */
             schema_version: 1;
-            settings: components["schemas"]["CostCapSettingsV1"];
+            /** @description null when the platform has never been configured (no global/per_org_default rows yet); the UI renders a first-time setup form. Never null once configured. */
+            settings: components["schemas"]["CostCapSettingsV1"] | null;
             /** Todays Projected Global Cents */
             todays_projected_global_cents: number;
             /** Todays Spend Global Cents */

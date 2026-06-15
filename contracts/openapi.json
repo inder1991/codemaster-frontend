@@ -1223,7 +1223,15 @@
             "type": "integer"
           },
           "settings": {
-            "$ref": "#/components/schemas/CostCapSettingsV1"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CostCapSettingsV1"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null when the platform has never been configured (no global/per_org_default rows yet); the UI renders a first-time setup form. Never null once configured."
           },
           "todays_projected_global_cents": {
             "minimum": 0,

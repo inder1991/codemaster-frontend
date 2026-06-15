@@ -132,6 +132,29 @@ export async function requestCostCapChange(
   });
 }
 
+/** PUT /api/admin/cost-caps/settings body — FIRST-TIME (bootstrap) configuration of the two scope caps.
+ *  Hand-defined (not in the generated contracts). */
+export interface CostCapSettingsInitV1 {
+  global_cap_cents: number;
+  per_org_default_cap_cents: number;
+}
+
+/**
+ * First-time (bootstrap) configuration of the global + per-org-default caps. A DIRECT super_admin/
+ * platform_owner write (the two-person change flow can't run until the rows exist) — returns the freshly
+ * configured page. Throws AdminApiError with status 409 if the caps are ALREADY configured (someone raced
+ * you); thereafter edits go through requestCostCapChange. 422 if a cap exceeds the hard ceiling.
+ */
+export async function initCostCapSettings(
+  body: CostCapSettingsInitV1,
+): Promise<CostCapPageV1> {
+  return _fetch<CostCapPageV1>("/settings", {
+    method: "PUT",
+    headers: _mutationHeaders(),
+    body: JSON.stringify({ schema_version: 1, ...body }),
+  });
+}
+
 export async function approveCostCapChange(
   pendingChangeId: string,
 ): Promise<CostCapPendingChangeV1> {
