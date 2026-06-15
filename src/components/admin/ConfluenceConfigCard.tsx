@@ -111,11 +111,20 @@ export function ConfluenceConfigCard() {
 
   // Connectivity probe — tests the entered base_url + token WITHOUT persisting. Never throws (the client
   // surfaces {ok:false,message}, incl. a clear note when the probe is unwired in this deployment).
+  // Forward auth_email exactly like handleSave: send it for Atlassian Cloud (HTTP-Basic), omit it for a
+  // Server/DC Bearer PAT — otherwise the backend falls back to Bearer auth and a Cloud probe falsely fails.
   async function handleTest(): Promise<void> {
     setIsTesting(true);
     setTestResult(null);
     try {
-      setTestResult(await testConfluenceConfig({ base_url: baseUrl.trim(), token }));
+      const trimmedEmail = authEmail.trim();
+      setTestResult(
+        await testConfluenceConfig({
+          base_url: baseUrl.trim(),
+          token,
+          ...(trimmedEmail !== "" ? { auth_email: trimmedEmail } : {}),
+        }),
+      );
     } finally {
       setIsTesting(false);
     }
@@ -155,10 +164,16 @@ export function ConfluenceConfigCard() {
               setBaseUrl(e.target.value);
               clearSaveStatus();
             }}
-            placeholder="https://acme.atlassian.net/wiki"
+            placeholder="https://your-site.atlassian.net/wiki"
             required
+            aria-describedby="cf-base-url-hint"
             className={cn(INPUT_CLASS, colors.divider, colors.bg.surface, t.body)}
           />
+          <p id="cf-base-url-hint" className={cn("mt-1", t.meta, colors.text.faint)}>
+            Atlassian Cloud: <code className="font-mono">https://your-site.atlassian.net/wiki</code> (include{" "}
+            <code className="font-mono">/wiki</code>). Server/Data Center: your base URL including its context
+            path.
+          </p>
         </div>
         <div>
           <FieldLabel htmlFor="cf-auth-email">
