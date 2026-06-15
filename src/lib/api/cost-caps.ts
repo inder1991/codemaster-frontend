@@ -133,11 +133,8 @@ export async function requestCostCapChange(
 }
 
 /** PUT /api/admin/cost-caps/settings body — FIRST-TIME (bootstrap) configuration of the two scope caps.
- *  Hand-defined (not in the generated contracts). */
-export interface CostCapSettingsInitV1 {
-  global_cap_cents: number;
-  per_org_default_cap_cents: number;
-}
+ *  Re-exported from the generated contracts (the endpoint + schema now live in openapi.json). */
+export type CostCapSettingsInitV1 = components["schemas"]["CostCapSettingsInitV1"];
 
 /**
  * First-time (bootstrap) configuration of the global + per-org-default caps. A DIRECT super_admin/
@@ -151,7 +148,7 @@ export async function initCostCapSettings(
   return _fetch<CostCapPageV1>("/settings", {
     method: "PUT",
     headers: _mutationHeaders(),
-    body: JSON.stringify({ schema_version: 1, ...body }),
+    body: JSON.stringify(body),
   });
 }
 

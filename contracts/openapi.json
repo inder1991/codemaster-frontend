@@ -1132,6 +1132,36 @@
         "title": "CostCapChangeRequestV1",
         "type": "object"
       },
+      "CostCapSettingsInitV1": {
+        "additionalProperties": false,
+        "description": "`PUT /api/admin/cost-caps/settings` body. FIRST-TIME (bootstrap) configuration of the two scope caps — a direct super_admin/platform_owner write (the two-person change flow can't run until the rows exist). Refused with 409 once configured; thereafter changes go through CostCapChangeRequestV1.",
+        "properties": {
+          "global_cap_cents": {
+            "maximum": 5000000,
+            "minimum": 0,
+            "title": "Global Cap Cents",
+            "type": "integer"
+          },
+          "per_org_default_cap_cents": {
+            "maximum": 5000000,
+            "minimum": 0,
+            "title": "Per Org Default Cap Cents",
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "global_cap_cents",
+          "per_org_default_cap_cents"
+        ],
+        "title": "CostCapSettingsInitV1",
+        "type": "object"
+      },
       "CostCapOverrideV1": {
         "additionalProperties": false,
         "description": "One row from `core.cost_cap_overrides` — a per-tenant\noverride of the per-org default cap, with optional expiry.",
@@ -7176,6 +7206,50 @@
           }
         },
         "summary": "Get Route",
+        "tags": [
+          "admin",
+          "cost-caps"
+        ]
+      }
+    },
+    "/api/admin/cost-caps/settings": {
+      "put": {
+        "operationId": "init_settings_route_api_admin_cost_caps_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CostCapSettingsInitV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostCapPageV1"
+                }
+              }
+            },
+            "description": "Caps bootstrapped; returns the configured page"
+          },
+          "401": {
+            "description": "unauthenticated"
+          },
+          "403": {
+            "description": "role insufficient (super_admin / platform_owner only)"
+          },
+          "409": {
+            "description": "cost caps are already configured (use the change-request flow)"
+          },
+          "422": {
+            "description": "a cap is outside [0, 5_000_000]"
+          }
+        },
+        "summary": "Init Settings Route",
         "tags": [
           "admin",
           "cost-caps"

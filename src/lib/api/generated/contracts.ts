@@ -56,6 +56,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/cost-caps/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Init Settings Route */
+        put: operations["init_settings_route_api_admin_cost_caps_settings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/cost-caps/changes": {
         parameters: {
             query?: never;
@@ -1831,6 +1848,22 @@ export interface components {
              * @enum {string}
              */
             target_kind: "global" | "per_org_default" | "per_org_override";
+        };
+        /**
+         * CostCapSettingsInitV1
+         * @description `PUT /api/admin/cost-caps/settings` body. FIRST-TIME (bootstrap) configuration of the two scope caps — a direct super_admin/platform_owner write (the two-person change flow can't run until the rows exist). Refused with 409 once configured; thereafter changes go through CostCapChangeRequestV1.
+         */
+        CostCapSettingsInitV1: {
+            /** Global Cap Cents */
+            global_cap_cents: number;
+            /** Per Org Default Cap Cents */
+            per_org_default_cap_cents: number;
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
         };
         /**
          * CostCapOverrideV1
@@ -4729,6 +4762,58 @@ export interface operations {
             };
             /** @description role insufficient or two-person rule violated */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    init_settings_route_api_admin_cost_caps_settings_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CostCapSettingsInitV1"];
+            };
+        };
+        responses: {
+            /** @description Caps bootstrapped; returns the configured page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostCapPageV1"];
+                };
+            };
+            /** @description unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description role insufficient (super_admin / platform_owner only) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description cost caps are already configured (use the change-request flow) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description a cap is outside [0, 5_000_000] */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

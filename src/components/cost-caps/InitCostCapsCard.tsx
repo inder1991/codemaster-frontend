@@ -67,7 +67,11 @@ export function InitCostCapsCard() {
   function submit() {
     setTouched(true);
     if (globalCents === null || perOrgCents === null) return;
-    mutation.mutate({ global_cap_cents: globalCents, per_org_default_cap_cents: perOrgCents });
+    mutation.mutate({
+      schema_version: 1,
+      global_cap_cents: globalCents,
+      per_org_default_cap_cents: perOrgCents,
+    });
   }
 
   const errorMessage =
@@ -91,8 +95,9 @@ export function InitCostCapsCard() {
             Set up cost caps
           </h2>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Cost caps aren&apos;t configured yet. Set the daily Bedrock spend ceilings to activate
-            enforcement. You can change them later — but once configured, changes need a second admin&apos;s
+            Cost caps aren&apos;t managed from the portal yet — until you set them here, Bedrock spend is
+            capped by the deployment&apos;s default limits. Set the daily ceilings to manage them from the
+            portal. You can change them later, but once configured, changes need a second admin&apos;s
             approval.
           </p>
         </div>
@@ -125,8 +130,8 @@ export function InitCostCapsCard() {
         </div>
 
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          Maximum: ${DOLLARS_HARD_CEILING.toLocaleString()}/day per cap. Enter 0 to keep Bedrock paused for
-          that scope.
+          Maximum: ${DOLLARS_HARD_CEILING.toLocaleString()}/day per cap. Enter 0 to pause Bedrock for that
+          scope.
         </p>
 
         {touched && invalid && (
