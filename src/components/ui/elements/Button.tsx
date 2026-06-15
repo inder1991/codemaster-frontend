@@ -106,7 +106,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
         VARIANT[variant],
         motion.fast,
         fullWidth && "w-full",
-        disabled && "opacity-50 cursor-not-allowed",
+        "c-btn-disabled",
+        disabled && "cursor-not-allowed",
         className,
       )}
       {...rest}

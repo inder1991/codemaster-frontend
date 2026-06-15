@@ -5,13 +5,22 @@
  * Phase 1 stacks a Primary and Secondary <LlmProviderCard> so super_admins
  * can configure both providers independently.
  *
- * Phase 0 single-card code is preserved (commented) in git history.
- * The page-level suite is LlmProviderConfigPage.test.tsx; per-card behavior
- * is covered by LlmProviderCard.test.tsx.
- *
  * T5.8 (Sprint 26 embedder lifecycle) — wraps the existing dual-card
  * Bedrock/Anthropic UI as the "Inference" tab and adds an "Embedding"
  * tab housing the Qwen platform credentials card + EmbedderLifecyclePanel.
+ *
+ * PART 3 layout redesign — uses <SettingsSection> rail layout replacing the
+ * old 2-column grid. Three sections in the Inference tab:
+ *   - "Providers" → the two LlmProviderCards.
+ *   - "Model catalog" → LlmModelCatalogCard.
+ *   - "Job routing" → LlmJobRoutingCard.
+ * Two sections in the Embedding tab:
+ *   - "Platform credentials" → PlatformCredentialsCard.
+ *   - "Re-embed lifecycle" → EmbedderLifecyclePanel.
+ *
+ * PART 2 — lifted model list: the page owns `models` + `refreshModels` and
+ * passes them to both LlmModelCatalogCard and LlmJobRoutingCard so a model
+ * validated in the catalog immediately becomes selectable in Job Routing.
  *
  * v1 note (spec §9): the <ModelNamePicker> rendered as `extraFields` on
  * the Qwen credentials card is operator-facing form input only — it lets
@@ -31,7 +40,7 @@ import {
   TabPanel,
   TabPanels,
 } from "@headlessui/react";
-import { useState, type JSX } from "react";
+import { useCallback, useEffect, useState, type JSX } from "react";
 
 import { EmbedderLifecyclePanel } from "@/components/admin/EmbedderLifecyclePanel";
 import { LlmJobRoutingCard } from "@/components/admin/LlmJobRoutingCard";
@@ -39,6 +48,8 @@ import { LlmModelCatalogCard } from "@/components/admin/LlmModelCatalogCard";
 import { LlmProviderCard } from "@/components/admin/LlmProviderCard";
 import { ModelNamePicker } from "@/components/admin/ModelNamePicker";
 import { PlatformCredentialsCard } from "@/components/admin/PlatformCredentialsCard";
+import { SettingsSection } from "@/components/ui/layout/SettingsSection";
+import { listLlmModels, type LlmModelV1 } from "@/lib/api/llm-models";
 import { cn } from "@/lib/cn";
 import { colors, type as t } from "@/lib/design-tokens";
 
@@ -46,9 +57,25 @@ const TABS = ["Inference", "Embedding"] as const;
 
 export default function LlmProviderConfigPage(): JSX.Element {
   // Operator-form-entry only. NOT plumbed into PATCH payload (spec §9).
-  // Default to the canonical Qwen 0.6b model; operator can pick from the
-  // ModelNamePicker dropdown or type a custom value for visual confirmation.
   const [qwenModelName, setQwenModelName] = useState<string>("qwen3-embed-0.6b");
+
+  // PART 2 — shared model list lifted from LlmModelCatalogCard +
+  // LlmJobRoutingCard. Both cards now receive this list so a model
+  // validated in the catalog immediately appears in routing options.
+  const [models, setModels] = useState<LlmModelV1[]>([]);
+
+  const refreshModels = useCallback(async () => {
+    try {
+      const catalog = await listLlmModels();
+      setModels(catalog);
+    } catch {
+      // Silent fail — each card surfaces its own load error.
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshModels();
+  }, [refreshModels]);
 
   return (
     <div className="space-y-8">
@@ -93,45 +120,51 @@ export default function LlmProviderConfigPage(): JSX.Element {
           ))}
         </TabList>
 
-        <TabPanels className="mt-6">
-          {/* Inference tab — head-of-UX 2-column redesign (2026-05-30).
-              LEFT: compact provider credentials cards (short by design).
-              RIGHT: model catalog + job routing (where model selection
-              actually lives per ADR-0060). Stacks to 1 column below lg. */}
+        <TabPanels>
+          {/* Inference tab — SettingsSection rail layout (PART 3). */}
           <TabPanel data-testid="llm-config-panel-inference">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-              {/* LEFT column — Providers (compact stacked pair). */}
-              <section className="space-y-3" data-testid="inference-providers-col">
-                <h2 className={cn(t.h2, colors.text.primary)}>Providers</h2>
+            {/* Providers section */}
+            <SettingsSection
+              first
+              title="Providers"
+              description="Primary and failover inference credentials; each is configured independently."
+            >
+              <section data-testid="inference-providers-col" className="space-y-3">
                 {/* eslint-disable-next-line jsx-a11y/aria-role -- role is a custom prop, not HTML ARIA */}
                 <LlmProviderCard role="primary" />
                 {/* eslint-disable-next-line jsx-a11y/aria-role -- role is a custom prop, not HTML ARIA */}
                 <LlmProviderCard role="secondary" />
               </section>
+            </SettingsSection>
 
-              {/* RIGHT column — Models (catalog) + Job routing. */}
-              <div className="space-y-8" data-testid="inference-models-col">
-                {/* ADR-0060 — MODELS section. */}
-                <section className="space-y-3">
-                  <h2 className={cn(t.h2, colors.text.primary)}>Models</h2>
-                  <LlmModelCatalogCard />
-                </section>
-
-                {/* ADR-0060 — JOB ROUTING section. */}
-                <section className="space-y-3">
-                  <h2 className={cn(t.h2, colors.text.primary)}>Job routing</h2>
-                  <LlmJobRoutingCard />
-                </section>
+            {/* Model catalog section */}
+            <SettingsSection
+              title="Model catalog"
+              description="Add and validate the models you'll route to. A model becomes assignable only after a green preflight."
+            >
+              <div data-testid="inference-models-col">
+                <LlmModelCatalogCard models={models} refreshModels={refreshModels} />
               </div>
-            </div>
+            </SettingsSection>
+
+            {/* Job routing section */}
+            <SettingsSection
+              title="Job routing"
+              description="Map each job to a validated model; unassigned jobs fall back to the platform default."
+            >
+              <LlmJobRoutingCard models={models} />
+            </SettingsSection>
           </TabPanel>
 
           {/* Embedding tab (NEW, T5.8) — Qwen credentials + lifecycle panel. */}
           <TabPanel
-            className="space-y-6"
             data-testid="llm-config-panel-embedding"
           >
-            <section>
+            <SettingsSection
+              first
+              title="Platform credentials"
+              description="Qwen embedding provider credentials — stored in Vault."
+            >
               <PlatformCredentialsCard
                 provider="embedder.qwen"
                 extraFields={
@@ -152,10 +185,13 @@ export default function LlmProviderConfigPage(): JSX.Element {
                   </div>
                 }
               />
-            </section>
-            <section>
+            </SettingsSection>
+            <SettingsSection
+              title="Re-embed lifecycle"
+              description="Start, monitor, and abort re-embedding runs."
+            >
               <EmbedderLifecyclePanel />
-            </section>
+            </SettingsSection>
           </TabPanel>
         </TabPanels>
       </TabGroup>

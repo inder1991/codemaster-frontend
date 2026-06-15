@@ -1,10 +1,12 @@
 /**
  * Sprint 12 / S12.1.1b — locked design tokens.
  *
- * Pages MUST import from this module. Inline hex codes,
- * spacing values, durations, or font-size class strings
- * elsewhere in the app will fail the eslint custom rule
- * `no-inline-design-values`.
+ * Pages MUST import from this module. Raw Tailwind palette
+ * colors (e.g. `bg-indigo-600`, `text-gray-500`) elsewhere in
+ * the app fail the eslint custom rule
+ * `design/no-inline-design-values` (eslint.config.mjs). Arbitrary
+ * OKLCH values (`bg-[oklch(...)]`) remain the intentional
+ * low-level escape hatch the primitives use.
  *
  * 2026-05-04: tokens rewritten to map to REAL CSS CLASSES
  * defined in `app/globals.css` (`.t-*`, `.c-*`) rather than
@@ -66,6 +68,17 @@ export const colors = {
     down: "c-statusbg-down",
     info: "c-statusbg-info",
     dim: "c-statusbg-dim",
+  },
+  // Status border colors — pair with statusBg for tinted callouts /
+  // selection states (e.g. a validation pass/fail card). Mirrors the
+  // statusBg roles so a colored container never reaches for raw
+  // `border-green-300` / `border-red-300`.
+  statusBorder: {
+    healthy: "c-statusborder-healthy",
+    degraded: "c-statusborder-degraded",
+    down: "c-statusborder-down",
+    info: "c-statusborder-info",
+    dim: "c-statusborder-dim",
   },
 } as const;
 

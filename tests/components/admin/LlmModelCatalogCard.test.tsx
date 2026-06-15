@@ -3,9 +3,13 @@
  *
  * Covers:
  *   - list render (table rows + status badges).
- *   - add: Save & test happy path (PUT then /test).
+ *   - add: Save & test happy path (PUT then /test) → green banner.
+ *   - add: added-but-preflight-failed → amber/warning banner (PART 3 §5).
+ *   - add: failed (PUT error) → red banner (PART 3 §5).
+ *   - add: 409 llm_model_id_taken surfaces backend detail (PART 3 §6).
  *   - delete blocked by 409 → shows dependent purposes.
  *   - add unsupported model 422 → shows the engine message.
+ *   - refreshModels prop called after mutations (PART 2).
  */
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -66,24 +70,32 @@ afterEach(() => {
 
 describe("LlmModelCatalogCard", () => {
   test("renders catalog rows with status badge", async () => {
+    // The card's table reads from the `models` prop (PART 2).
+    // The initial load triggers refreshModels; the parent then passes
+    // the populated list back. In this isolated test we supply models directly.
+    const models = [
+      modelRow() as ReturnType<typeof modelRow>,
+      modelRow({
+        model_id: "claude-haiku-4",
+        display_name: null,
+        last_validation_status: "failed",
+        last_validation_error: "model not found",
+      }) as ReturnType<typeof modelRow>,
+    ];
+
     mockFetch(async (url) => {
       if (url.endsWith("/llm-models")) {
-        return json({
-          models: [
-            modelRow(),
-            modelRow({
-              model_id: "claude-haiku-4",
-              display_name: null,
-              last_validation_status: "failed",
-              last_validation_error: "model not found",
-            }),
-          ],
-        });
+        return json({ models });
       }
       return new Response(null, { status: 404 });
     });
 
-    render(<LlmModelCatalogCard />);
+    render(
+      <LlmModelCatalogCard
+        models={models as unknown as import("@/lib/api/llm-models").LlmModelV1[]}
+        refreshModels={vi.fn()}
+      />,
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId("model-row-claude-sonnet-4-6")).toBeInTheDocument();
@@ -97,9 +109,6 @@ describe("LlmModelCatalogCard", () => {
   });
 
   test("malformed list body (no `models` key) degrades to empty-state, never crashes", async () => {
-    // Regression: a 200 body without a `models` array used to make
-    // listLlmModels() return undefined, white-screening the page on
-    // `models.length`. It must coerce to [] and render the empty-state.
     mockFetch(async (url) => {
       if (url.endsWith("/llm-models")) {
         return json({}); // no `models` key
@@ -107,7 +116,7 @@ describe("LlmModelCatalogCard", () => {
       return new Response(null, { status: 404 });
     });
 
-    render(<LlmModelCatalogCard />);
+    render(<LlmModelCatalogCard models={[]} refreshModels={vi.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByTestId("model-catalog-empty")).toBeInTheDocument();
@@ -115,18 +124,14 @@ describe("LlmModelCatalogCard", () => {
     expect(screen.queryByTestId("model-catalog-load-error")).not.toBeInTheDocument();
   });
 
-  test("add: Save & test issues PUT then POST /test", async () => {
+  test("add: Save & test issues PUT then POST /test, refreshModels called", async () => {
     const calls: { method: string; url: string; body?: unknown }[] = [];
-    let listCallCount = 0;
+    const refreshModels = vi.fn();
 
     mockFetch(async (url, init) => {
       const method = init?.method ?? "GET";
       if (method === "GET" && url.endsWith("/llm-models")) {
-        listCallCount += 1;
-        // First load: empty; after add: contains the new model.
-        const models =
-          listCallCount === 1 ? [] : [modelRow({ model_id: "claude-opus-4" })];
-        return json({ models });
+        return json({ models: [] });
       }
       if (method === "PUT" && url.endsWith("/llm-models")) {
         calls.push({ method, url, body: JSON.parse(init?.body as string) });
@@ -139,7 +144,7 @@ describe("LlmModelCatalogCard", () => {
       return new Response(null, { status: 404 });
     });
 
-    render(<LlmModelCatalogCard />);
+    render(<LlmModelCatalogCard models={[]} refreshModels={refreshModels} />);
 
     await waitFor(() => {
       expect(screen.getByTestId("model-catalog-empty")).toBeInTheDocument();
@@ -154,6 +159,10 @@ describe("LlmModelCatalogCard", () => {
       expect(screen.getByTestId("add-model-success")).toBeInTheDocument();
     });
 
+    // Banner is green (healthy) — add+validated path.
+    const successBanner = screen.getByTestId("add-model-success");
+    expect(successBanner.className).toContain("c-status-healthy");
+
     const putCall = calls.find((c) => c.method === "PUT");
     const testCall = calls.find((c) => c.method === "POST");
     expect(putCall).toBeDefined();
@@ -167,9 +176,97 @@ describe("LlmModelCatalogCard", () => {
     expect(testCall?.url).toContain(
       "/llm-models/anthropic_direct/claude-opus-4/test",
     );
+
+    // PART 2: refreshModels must be called after a successful add.
+    expect(refreshModels).toHaveBeenCalled();
+  });
+
+  // PART 3 §5 — add-but-preflight-failed → amber/warning banner, not green.
+  test("add-but-preflight-failed shows amber warning banner, not green", async () => {
+    mockFetch(async (url, init) => {
+      const method = init?.method ?? "GET";
+      if (method === "GET" && url.endsWith("/llm-models")) {
+        return json({ models: [] });
+      }
+      if (method === "PUT" && url.endsWith("/llm-models")) {
+        return json(modelRow({ model_id: "claude-opus-4" }));
+      }
+      if (method === "POST" && url.includes("/test")) {
+        return json({ ok: false, message: "model key not authorised" });
+      }
+      return new Response(null, { status: 404 });
+    });
+
+    render(<LlmModelCatalogCard models={[]} refreshModels={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("model-catalog-empty")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByTestId("add-model-id-input"), {
+      target: { value: "claude-opus-4" },
+    });
+    fireEvent.click(screen.getByTestId("add-model-save-btn"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("add-model-success")).toBeInTheDocument();
+    });
+
+    const successBanner = screen.getByTestId("add-model-success");
+    // Must be amber (degraded), NOT green (healthy).
+    expect(successBanner.className).toContain("c-status-degraded");
+    expect(successBanner.className).not.toContain("c-status-healthy");
+    // Shows the raw result.message — NOT a duplicated "preflight failed:" prefix.
+    expect(successBanner.textContent).toContain("model key not authorised");
+    expect(successBanner.textContent).not.toMatch(/preflight failed:.*preflight failed:/);
+  });
+
+  // PART 3 §6 — 409 llm_model_id_taken → surfaces backend detail message.
+  test("add: 409 llm_model_id_taken surfaces the backend detail message", async () => {
+    mockFetch(async (url, init) => {
+      const method = init?.method ?? "GET";
+      if (method === "GET" && url.endsWith("/llm-models")) {
+        return json({ models: [] });
+      }
+      if (method === "PUT" && url.endsWith("/llm-models")) {
+        return json(
+          {
+            detail: {
+              code: "llm_model_id_taken",
+              message: "claude-sonnet-4-6 is already registered under bedrock.",
+              provider: "bedrock",
+            },
+          },
+          409,
+        );
+      }
+      return new Response(null, { status: 404 });
+    });
+
+    render(<LlmModelCatalogCard models={[]} refreshModels={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("model-catalog-empty")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByTestId("add-model-id-input"), {
+      target: { value: "claude-sonnet-4-6" },
+    });
+    fireEvent.click(screen.getByTestId("add-model-save-btn"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("add-model-error")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("add-model-error").textContent).toContain(
+      "already registered under bedrock",
+    );
   });
 
   test("delete blocked by 409 shows dependent purposes", async () => {
+    const existingModels = [
+      modelRow() as unknown as import("@/lib/api/llm-models").LlmModelV1,
+    ];
+
     mockFetch(async (url, init) => {
       const method = init?.method ?? "GET";
       if (method === "GET" && url.endsWith("/llm-models")) {
@@ -190,7 +287,7 @@ describe("LlmModelCatalogCard", () => {
       return new Response(null, { status: 404 });
     });
 
-    render(<LlmModelCatalogCard />);
+    render(<LlmModelCatalogCard models={existingModels} refreshModels={vi.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByTestId("model-row-claude-sonnet-4-6")).toBeInTheDocument();
@@ -227,7 +324,7 @@ describe("LlmModelCatalogCard", () => {
       return new Response(null, { status: 404 });
     });
 
-    render(<LlmModelCatalogCard />);
+    render(<LlmModelCatalogCard models={[]} refreshModels={vi.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByTestId("model-catalog-empty")).toBeInTheDocument();

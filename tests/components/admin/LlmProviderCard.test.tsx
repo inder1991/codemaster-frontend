@@ -53,7 +53,8 @@ afterEach(() => {
 describe("LlmProviderCard role='primary'", () => {
   test("renders primary card title without secondary notice", () => {
     render(<LlmProviderCard role="primary" />);
-    expect(screen.getByText("Primary LLM Provider")).toBeInTheDocument();
+    // PART 3 §3: simplified titles — rail says "Providers", card says "Primary"/"Secondary".
+    expect(screen.getByText("Primary")).toBeInTheDocument();
     expect(
       screen.queryByTestId("secondary-card-notice"),
     ).not.toBeInTheDocument();
@@ -215,7 +216,8 @@ describe("LlmProviderCard role='primary'", () => {
 describe("LlmProviderCard role='secondary'", () => {
   test("renders secondary card title with 'not yet routed' notice", () => {
     render(<LlmProviderCard role="secondary" />);
-    expect(screen.getByText("Secondary LLM Provider")).toBeInTheDocument();
+    // PART 3 §3: simplified title.
+    expect(screen.getByText("Secondary")).toBeInTheDocument();
     const notice = screen.getByTestId("secondary-card-notice");
     expect(notice).toBeInTheDocument();
     expect(notice.textContent).toContain("not yet routed");
