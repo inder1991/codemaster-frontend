@@ -55,6 +55,13 @@ export function InitCostCapsCard() {
       // Re-fetch the page — settings is now non-null, so it renders the governance dashboard.
       void queryClient.invalidateQueries({ queryKey: COST_CAPS_QUERY_KEYS.page() });
     },
+    onError: (err) => {
+      // 409 = someone else just configured the caps. Refetch (invalidate refetches the ACTIVE page query)
+      // so the page flips to the dashboard — makes the "refreshing…" message below actually true.
+      if (err instanceof AdminApiError && err.status === 409) {
+        void queryClient.invalidateQueries({ queryKey: COST_CAPS_QUERY_KEYS.page() });
+      }
+    },
   });
 
   function submit() {
