@@ -64,17 +64,19 @@ export default function LlmProviderConfigPage(): JSX.Element {
   // validated in the catalog immediately appears in routing options.
   const [models, setModels] = useState<LlmModelV1[]>([]);
 
+  // refreshModels deliberately does NOT swallow errors — it re-throws so
+  // the catalog card's .catch() can surface a load-error banner.
+  // The page's own initial useEffect ignores the rejection (the card already
+  // shows the error); per-mutation try/catch in the card also covers it.
   const refreshModels = useCallback(async () => {
-    try {
-      const catalog = await listLlmModels();
-      setModels(catalog);
-    } catch {
-      // Silent fail — each card surfaces its own load error.
-    }
+    const catalog = await listLlmModels();
+    setModels(catalog);
   }, []);
 
   useEffect(() => {
-    void refreshModels();
+    // Ignore at page level — LlmModelCatalogCard surfaces it via its own
+    // .catch() in its mount effect.
+    void refreshModels().catch(() => {});
   }, [refreshModels]);
 
   return (

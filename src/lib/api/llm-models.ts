@@ -52,25 +52,44 @@ export interface LlmModelTestResult {
   message: string;
 }
 
-/** One purpose→model assignment row (`core.llm_purpose_model`). */
-export interface LlmPurposeModelV1 {
-  purpose: LlmPurpose;
-  model_id: string;
-}
+/**
+ * ALL 8 purpose values the backend/DB can store (generated contract:
+ * `LlmPurposeModelV1.purpose` in contracts.ts ~2672).
+ * Used for GET response rows so legacy/orphan rows typecheck cleanly.
+ */
+export type AnyLlmPurpose =
+  | "review_summary"
+  | "review_finding"
+  | "chat_reply"
+  | "walkthrough"
+  | "redaction_check"
+  | "cost_estimate"
+  | "analysis_curator"
+  | "fix_prompt";
 
-/** PUT body for assigning a purpose to a model. */
-export interface LlmPurposeRoutingUpsertV1 {
-  schema_version: 1;
-  purpose: LlmPurpose;
-  model_id: string;
-}
-
-/** The 4 executable LlmPurposeV1 values the runtime consumes. */
+/** The 4 executable LlmPurposeV1 values the runtime consumes (WRITE only). */
 export type LlmPurpose =
   | "review_finding"
   | "walkthrough"
   | "analysis_curator"
   | "fix_prompt";
+
+/**
+ * One purpose→model assignment row from the GET response (`core.llm_purpose_model`).
+ * Uses the broad AnyLlmPurpose so legacy/orphan rows returned by the backend
+ * are not silently truncated.
+ */
+export interface LlmPurposeModelV1 {
+  purpose: AnyLlmPurpose;
+  model_id: string;
+}
+
+/** PUT body for assigning a purpose to a model (narrow 4-value set only). */
+export interface LlmPurposeRoutingUpsertV1 {
+  schema_version: 1;
+  purpose: LlmPurpose;
+  model_id: string;
+}
 
 /** 409 body when a delete is blocked by an in-use model. */
 export interface LlmModelInUseDetail {

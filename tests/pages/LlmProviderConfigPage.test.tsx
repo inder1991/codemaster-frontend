@@ -170,15 +170,21 @@ afterEach(() => {
 // ── Suite 2: rebuilt Phase 1 dual-card page ───────────────────────
 
 describe("LlmProviderConfigPage (/admin/llm) — Phase 1 dual-card", () => {
-  test("renders both Primary and Secondary card headings", () => {
+  test("renders both Primary and Secondary card headings", async () => {
     renderLlmPage();
-    // PART 3 §3 strips "Primary LLM Provider" → "Primary" / "Secondary"
-    expect(screen.getByText("Primary")).toBeInTheDocument();
+    // Wait for child card mount-effects to settle (avoids act() warnings).
+    await waitFor(() => {
+      expect(screen.getByText("Primary")).toBeInTheDocument();
+    });
     expect(screen.getByText("Secondary")).toBeInTheDocument();
   });
 
-  test("Inference tab shows provider cards and model catalog", () => {
+  test("Inference tab shows provider cards and model catalog", async () => {
     renderLlmPage();
+    // Wait for async fetches from child cards to settle.
+    await waitFor(() => {
+      expect(screen.getByTestId("llm-model-catalog-card")).toBeInTheDocument();
+    });
     const providersCol = screen.getByTestId("inference-providers-col");
     expect(providersCol).toBeInTheDocument();
     expect(
@@ -188,43 +194,56 @@ describe("LlmProviderConfigPage (/admin/llm) — Phase 1 dual-card", () => {
       within(providersCol).getByTestId("llm-provider-card-secondary"),
     ).toBeInTheDocument();
 
-    expect(screen.getByTestId("llm-model-catalog-card")).toBeInTheDocument();
     expect(screen.getByTestId("llm-job-routing-card")).toBeInTheDocument();
   });
 
-  test("secondary card shows the 'not yet routed' notice", () => {
+  test("secondary card shows the 'not yet routed' notice", async () => {
     renderLlmPage();
-    expect(
-      screen.getByTestId("secondary-card-notice"),
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("secondary-card-notice"),
+      ).toBeInTheDocument();
+    });
     expect(screen.getByTestId("secondary-card-notice").textContent).toContain(
       "not yet routed",
     );
   });
 
-  test("primary card does not show the secondary notice", () => {
+  test("primary card does not show the secondary notice", async () => {
     renderLlmPage();
+    // Wait for the card to render fully before asserting absence.
+    await waitFor(() => {
+      expect(screen.getByTestId("llm-provider-card-primary")).toBeInTheDocument();
+    });
     const primaryCard = screen.getByTestId("llm-provider-card-primary");
     expect(primaryCard.querySelector("[data-testid='secondary-card-notice']")).toBeNull();
   });
 
-  test("region field is visible when provider is bedrock (default)", () => {
+  test("region field is visible when provider is bedrock (default)", async () => {
     renderLlmPage();
-    expect(screen.getAllByTestId("primary-region-field")).toHaveLength(1);
+    await waitFor(() => {
+      expect(screen.getAllByTestId("primary-region-field")).toHaveLength(1);
+    });
     expect(screen.getAllByTestId("secondary-region-field")).toHaveLength(1);
   });
 
-  test("region field is hidden when provider changes to anthropic_direct", () => {
+  test("region field is hidden when provider changes to anthropic_direct", async () => {
     renderLlmPage();
+    // Settle child card mount effects before firing a change event.
+    await waitFor(() => {
+      expect(screen.getByTestId("primary-provider-select")).toBeInTheDocument();
+    });
     const primaryProviderSelect = screen.getByTestId(
       "primary-provider-select",
     ) as HTMLSelectElement;
     fireEvent.change(primaryProviderSelect, {
       target: { value: "anthropic_direct" },
     });
-    expect(
-      screen.queryByTestId("primary-region-field"),
-    ).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("primary-region-field"),
+      ).not.toBeInTheDocument();
+    });
     expect(screen.getByTestId("secondary-region-field")).toBeInTheDocument();
   });
 
@@ -398,10 +417,12 @@ describe("LlmProviderConfigPage (/admin/llm) — Phase 1 dual-card", () => {
 // ── Suite 3: T5.8 — Embedding tab (Sprint 26) ─────────────────────
 
 describe("LlmProviderConfigPage (/admin/llm) — T5.8 Embedding tab", () => {
-  test("renders the tab list with Inference and Embedding tabs", () => {
+  test("renders the tab list with Inference and Embedding tabs", async () => {
     renderLlmPage();
-    const tablist = screen.getByTestId("llm-config-tablist");
-    expect(tablist).toBeInTheDocument();
+    // Wait for async child card fetches to settle before asserting.
+    await waitFor(() => {
+      expect(screen.getByTestId("llm-config-tablist")).toBeInTheDocument();
+    });
     expect(
       screen.getByTestId("llm-config-tab-inference"),
     ).toBeInTheDocument();
@@ -410,11 +431,12 @@ describe("LlmProviderConfigPage (/admin/llm) — T5.8 Embedding tab", () => {
     ).toBeInTheDocument();
   });
 
-  test("Inference tab is selected by default and shows the dual-card UI", () => {
+  test("Inference tab is selected by default and shows the dual-card UI", async () => {
     renderLlmPage();
-    expect(
-      screen.getByTestId("llm-provider-card-primary"),
-    ).toBeInTheDocument();
+    // Settle child card fetches so async state doesn't escape test boundary.
+    await waitFor(() => {
+      expect(screen.getByTestId("llm-provider-card-primary")).toBeInTheDocument();
+    });
     expect(
       screen.getByTestId("llm-provider-card-secondary"),
     ).toBeInTheDocument();
@@ -530,13 +552,15 @@ describe("LlmProviderConfigPage (/admin/llm) — PART 3 SettingsSection layout",
     ).toBeInTheDocument();
   });
 
-  test("provider card shows simplified title 'Primary' (not 'Primary LLM Provider')", () => {
+  test("provider card shows simplified title 'Primary' (not 'Primary LLM Provider')", async () => {
     renderLlmPage();
+    // Wait for child cards to settle before asserting.
+    await waitFor(() => {
+      expect(screen.getByText("Primary")).toBeInTheDocument();
+    });
     // The old verbose titles must not appear.
     expect(screen.queryByText("Primary LLM Provider")).not.toBeInTheDocument();
     expect(screen.queryByText("Secondary LLM Provider")).not.toBeInTheDocument();
-    // Simplified titles must be present.
-    expect(screen.getByText("Primary")).toBeInTheDocument();
     expect(screen.getByText("Secondary")).toBeInTheDocument();
   });
 

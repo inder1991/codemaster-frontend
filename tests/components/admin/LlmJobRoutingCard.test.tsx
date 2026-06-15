@@ -11,7 +11,7 @@
  *     appears in the routing options without remounting.
  */
 
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
@@ -500,5 +500,76 @@ describe("LlmJobRoutingCard", () => {
     });
 
     expect(screen.queryByTestId("job-routing-orphan-block")).not.toBeInTheDocument();
+  });
+
+  // L1 — analysis_curator row carries a muted hint about the retrieval reranker.
+  test("L1: analysis_curator row shows a hint that it drives the retrieval reranker", async () => {
+    mockFetch(async (url) => {
+      if (url.endsWith("/llm-purpose-routing")) return json({ assignments: [] });
+      return new Response(null, { status: 404 });
+    });
+
+    render(<LlmJobRoutingCard models={[]} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("job-routing-row-analysis_curator")).toBeInTheDocument();
+    });
+
+    const hintEl = screen.getByTestId("routing-label-hint-analysis_curator");
+    expect(hintEl).toBeInTheDocument();
+    expect(hintEl.textContent).toContain("retrieval reranker");
+    // Other rows must NOT have a hint element.
+    expect(
+      screen.queryByTestId("routing-label-hint-review_finding"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("routing-label-hint-fix_prompt"),
+    ).not.toBeInTheDocument();
+  });
+
+  // L5 — "✓ Saved" auto-clears after ~3 s. Fake timers from the start so the component's auto-clear
+  // setTimeout is captured; advanceTimersByTimeAsync drains the async GET/PUT microtask chains between
+  // ticks (advancing 0 ms flushes promises WITHOUT firing the 3 s timer), so we never use a real-timer
+  // waitFor under fake timers (which would deadlock).
+  test("L5: rowSuccess auto-clears after 3 seconds (no stale affirmation)", async () => {
+    vi.useFakeTimers();
+
+    mockFetch(async (url, init) => {
+      const method = init?.method ?? "GET";
+      if (method === "GET" && url.endsWith("/llm-purpose-routing")) {
+        return json({ assignments: [] });
+      }
+      if (method === "PUT" && url.endsWith("/llm-purpose-routing")) {
+        return json({ purpose: "review_finding", model_id: "valid-ok" });
+      }
+      return new Response(null, { status: 404 });
+    });
+
+    render(<LlmJobRoutingCard models={[{ ...VALID_MODEL, model_id: "valid-ok" }]} />);
+
+    // Drain the mount GET (0 ms advance → flush microtasks only, not the 3 s clock).
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(screen.getByTestId("routing-select-review_finding")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByTestId("routing-select-review_finding"), {
+      target: { value: "valid-ok" },
+    });
+    // Drain the PUT + the routing re-fetch → "✓ Saved" appears.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(screen.getByTestId("routing-success-review_finding")).toBeInTheDocument();
+
+    // Advance past the 3 s threshold → the affirmation auto-clears.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3100);
+    });
+    expect(
+      screen.queryByTestId("routing-success-review_finding"),
+    ).not.toBeInTheDocument();
+
+    vi.useRealTimers();
   });
 });

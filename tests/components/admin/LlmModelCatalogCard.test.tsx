@@ -10,6 +10,7 @@
  *   - delete blocked by 409 → shows dependent purposes.
  *   - add unsupported model 422 → shows the engine message.
  *   - refreshModels prop called after mutations (PART 2).
+ *   - F1: when refreshModels rejects, card shows load-error banner (not silent empty).
  */
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -341,5 +342,25 @@ describe("LlmModelCatalogCard", () => {
     expect(screen.getByTestId("add-model-error").textContent).toContain(
       "not in the accepted set",
     );
+  });
+
+  // F1 — when refreshModels rejects, the catalog card shows the load-error
+  // banner (not a silent empty catalog).  This validates that refreshModels
+  // propagates its rejection rather than swallowing it.
+  test("F1: when refreshModels rejects, load-error banner is shown (not silent empty)", async () => {
+    // refreshModels prop that always rejects — simulates a broken catalog fetch.
+    const refreshModels = vi.fn().mockRejectedValue(new Error("Network failure"));
+
+    render(<LlmModelCatalogCard models={[]} refreshModels={refreshModels} />);
+
+    // The load-error banner must appear...
+    await waitFor(() => {
+      expect(screen.getByTestId("model-catalog-load-error")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("model-catalog-load-error").textContent).toContain(
+      "Network failure",
+    );
+    // ...and the empty-state placeholder must NOT appear (we're in error state).
+    expect(screen.queryByTestId("model-catalog-empty")).not.toBeInTheDocument();
   });
 });

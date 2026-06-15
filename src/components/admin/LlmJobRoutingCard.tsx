@@ -45,11 +45,17 @@ const SUPER_ADMIN_REQUIRED = "super_admin required for this action.";
  * The 4 executable purposes the runtime consumes, in display order + labels
  * (PART 4-FE §1). Removed: review_summary, chat_reply, redaction_check,
  * cost_estimate.
+ *
+ * `hint` is an optional muted sub-label rendered under the row's label.
  */
-const PURPOSES: ReadonlyArray<{ purpose: LlmPurpose; label: string }> = [
+const PURPOSES: ReadonlyArray<{ purpose: LlmPurpose; label: string; hint?: string }> = [
   { purpose: "review_finding", label: "Code review (chunks)" },
   { purpose: "walkthrough", label: "PR walkthrough" },
-  { purpose: "analysis_curator", label: "Quick helper (Tier-1)" },
+  {
+    purpose: "analysis_curator",
+    label: "Quick helper (Tier-1)",
+    hint: "Also used by the retrieval reranker.",
+  },
   { purpose: "fix_prompt", label: "Fix-prompt synthesis" },
 ];
 
@@ -81,6 +87,15 @@ export function LlmJobRoutingCard({ models }: LlmJobRoutingCardProps) {
     null,
   );
   const [rowSuccess, setRowSuccess] = useState<LlmPurpose | null>(null);
+
+  // L5 — auto-clear the "✓ Saved" affirmation after ~3 s so it doesn't
+  // persist until the next mutation.  The cleanup clears the timeout on
+  // unmount or whenever rowSuccess changes, preventing stale fires.
+  useEffect(() => {
+    if (rowSuccess === null) return;
+    const id = setTimeout(() => setRowSuccess(null), 3000);
+    return () => clearTimeout(id);
+  }, [rowSuccess]);
 
   // Orphan (unrecognized) purpose reset state.
   const [busyOrphan, setBusyOrphan] = useState<string | null>(null);
@@ -186,7 +201,7 @@ export function LlmJobRoutingCard({ models }: LlmJobRoutingCardProps) {
           <p className={cn(t.meta, colors.text.muted)}>Loading…</p>
         )}
         {!loading &&
-          PURPOSES.map(({ purpose, label }) => {
+          PURPOSES.map(({ purpose, label, hint }) => {
             const current = assignments[purpose] ?? DEFAULT_OPTION;
             // If the persisted model is no longer assignable (e.g. it lost
             // its preflight), still show it as a selected option so the row
@@ -205,6 +220,15 @@ export function LlmJobRoutingCard({ models }: LlmJobRoutingCardProps) {
                   className={cn(t.body, colors.text.primary, "min-w-48")}
                 >
                   {label}
+                  {hint && (
+                    <span
+                      className={cn(t.caption, colors.text.faint, "block")}
+                      data-testid={`routing-label-hint-${purpose}`}
+                      title={hint}
+                    >
+                      {hint}
+                    </span>
+                  )}
                 </label>
                 <select
                   id={`routing-${purpose}`}

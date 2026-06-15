@@ -281,7 +281,7 @@ export function LlmModelCatalogCard({ models, refreshModels }: LlmModelCatalogCa
                 </td>
               </tr>
             )}
-            {!loading && models.length === 0 && (
+            {!loading && !loadError && models.length === 0 && (
               <tr>
                 <td
                   colSpan={4}
