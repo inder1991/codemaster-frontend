@@ -3020,13 +3020,10 @@
           "purpose": {
             "type": "string",
             "enum": [
-              "review_summary",
               "review_finding",
-              "chat_reply",
               "walkthrough",
-              "redaction_check",
-              "cost_estimate",
-              "analysis_curator"
+              "analysis_curator",
+              "fix_prompt"
             ]
           },
           "model_id": {
@@ -3076,7 +3073,8 @@
               "walkthrough",
               "redaction_check",
               "cost_estimate",
-              "analysis_curator"
+              "analysis_curator",
+              "fix_prompt"
             ]
           },
           "model_id": {
@@ -9328,6 +9326,35 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/admin/llm-purpose-routing/{purpose}": {
+      "delete": {
+        "operationId": "admin_llm_purpose_routing_delete_api_admin_llm_purpose_routing_purpose_delete",
+        "parameters": [
+          {
+            "name": "purpose",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
           }
         }
       }

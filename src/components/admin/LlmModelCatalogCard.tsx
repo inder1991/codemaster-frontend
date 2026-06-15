@@ -9,7 +9,19 @@
  * Reads work for reader+; mutations are super_admin-gated. On a 403 from
  * a mutation we surface a clear "super_admin required" message rather than
  * a raw error. A blocked delete (409) lists the dependent purposes; a bad
- * add (422) shows the engine's unsupported-model message.
+ * add (422) shows the engine's unsupported-model message. A 409 from the
+ * PUT (llm_model_id_taken cross-provider collision) also surfaces the
+ * backend detail message (PART 3 §6).
+ *
+ * PART 2: `models` + `refreshModels` are now owned by the parent page so
+ * a model validated here immediately becomes selectable in LlmJobRoutingCard
+ * without a page reload. This card calls `refreshModels()` after add/test/delete
+ * instead of re-fetching its own list.
+ *
+ * PART 3 §5: add-result banner split into three outcomes:
+ *   - added+validated  → green  (colors.status.healthy)
+ *   - added+preflight-failed → amber WARNING (colors.status.degraded)
+ *   - add failed       → red    (colors.status.down) via addError
  *
  * Plain useState pattern (mirrors LlmProviderCard) — no react-query.
  */
@@ -23,7 +35,6 @@ import { Card } from "@/components/ui/elements/Card";
 import { AdminApiError } from "@/lib/api/admin";
 import {
   deleteLlmModel,
-  listLlmModels,
   LlmModelDetailError,
   LlmModelInUseError,
   testLlmModel,
@@ -59,7 +70,8 @@ function StatusBadge({ model }: { model: LlmModelV1 }) {
           "inline-flex items-center px-2 py-0.5 rounded text-sm font-medium",
           colors.statusBg.healthy,
           colors.status.healthy,
-          "border border-green-300",
+          "border",
+          colors.statusBorder.healthy,
         )}
         data-testid={`model-status-${model.model_id}`}
       >
@@ -74,7 +86,8 @@ function StatusBadge({ model }: { model: LlmModelV1 }) {
           "inline-flex items-center px-2 py-0.5 rounded text-sm font-medium",
           colors.statusBg.down,
           colors.status.down,
-          "border border-red-300",
+          "border",
+          colors.statusBorder.down,
         )}
         title={model.last_validation_error ?? undefined}
         data-testid={`model-status-${model.model_id}`}
@@ -101,8 +114,17 @@ function StatusBadge({ model }: { model: LlmModelV1 }) {
 
 // ── Main component ────────────────────────────────────────────────
 
-export function LlmModelCatalogCard() {
-  const [models, setModels] = useState<LlmModelV1[]>([]);
+export interface LlmModelCatalogCardProps {
+  /**
+   * Shared model list from the parent page (PART 2).
+   * Used for the catalog table display.
+   */
+  models: LlmModelV1[];
+  /** Callback to trigger a parent-level model list refresh (PART 2). */
+  refreshModels: () => void | Promise<void>;
+}
+
+export function LlmModelCatalogCard({ models, refreshModels }: LlmModelCatalogCardProps) {
   const [loading, setLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -121,26 +143,34 @@ export function LlmModelCatalogCard() {
   const [newDisplayName, setNewDisplayName] = useState<string>("");
   const [isAdding, setIsAdding] = useState<boolean>(false);
   const [addError, setAddError] = useState<string | null>(null);
-  const [addSuccess, setAddSuccess] = useState<string | null>(null);
+
+  /**
+   * PART 3 §5 — split add-result into three typed outcomes:
+   *   - "validated": added + green preflight → green banner
+   *   - "preflight_failed": added but preflight failed → amber banner
+   */
+  const [addOutcome, setAddOutcome] = useState<{
+    kind: "validated" | "preflight_failed";
+    message: string;
+  } | null>(null);
 
   function rowKey(m: LlmModelV1): string {
     return `${m.provider}/${m.model_id}`;
   }
 
-  async function refresh() {
+  // Initial load: call refreshModels to populate the shared parent list,
+  // then clear loading state. The table reads from the `models` prop.
+  useEffect(() => {
     setLoading(true);
     setLoadError(null);
-    try {
-      setModels(await listLlmModels());
-    } catch (err: unknown) {
-      setLoadError(err instanceof Error ? err.message : "Failed to load models");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    void refresh();
+    Promise.resolve(refreshModels())
+      .catch((err: unknown) => {
+        setLoadError(err instanceof Error ? err.message : "Failed to load models");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleTest(m: LlmModelV1) {
@@ -153,8 +183,7 @@ export function LlmModelCatalogCard() {
       if (!result.ok) {
         setRowError({ key, message: result.message });
       }
-      // Refresh to reflect the persisted validation status.
-      await refresh();
+      await refreshModels();
     } catch (err: unknown) {
       setRowError({ key, message: mutationErrorMessage(err) });
     } finally {
@@ -169,7 +198,7 @@ export function LlmModelCatalogCard() {
     setInUse(null);
     try {
       await deleteLlmModel(m.provider, m.model_id);
-      await refresh();
+      await refreshModels();
     } catch (err: unknown) {
       if (err instanceof LlmModelInUseError) {
         setInUse({ key, purposes: err.detail.purposes });
@@ -185,9 +214,8 @@ export function LlmModelCatalogCard() {
     e.preventDefault();
     setIsAdding(true);
     setAddError(null);
-    setAddSuccess(null);
+    setAddOutcome(null);
     try {
-      // PUT the catalog row first…
       await upsertLlmModel({
         schema_version: 1,
         provider: newProvider,
@@ -195,18 +223,19 @@ export function LlmModelCatalogCard() {
         display_name: newDisplayName.trim() || null,
         enabled: true,
       });
-      // …then run the preflight so the model becomes assignable.
+      // Run the preflight so the model becomes assignable.
       const result = await testLlmModel(newProvider, newModelId.trim());
       if (result.ok) {
-        setAddSuccess(`Added and validated ${newModelId.trim()}.`);
+        // PART 3 §5: added+validated → green outcome.
+        setAddOutcome({ kind: "validated", message: `Added and validated ${newModelId.trim()}.` });
       } else {
-        setAddSuccess(
-          `Added ${newModelId.trim()}, but preflight failed: ${result.message}`,
-        );
+        // PART 3 §5: added-but-preflight-failed → amber outcome.
+        // Use the raw result.message — do NOT prepend "preflight failed:".
+        setAddOutcome({ kind: "preflight_failed", message: result.message });
       }
       setNewModelId("");
       setNewDisplayName("");
-      await refresh();
+      await refreshModels();
     } catch (err: unknown) {
       if (err instanceof LlmModelDetailError) {
         setAddError(err.detail.message);
@@ -220,17 +249,13 @@ export function LlmModelCatalogCard() {
 
   return (
     <Card padding="lg" data-testid="llm-model-catalog-card">
-      <div className="mb-4">
-        <h3 className={cn(t.h3, colors.text.primary)}>Model catalog</h3>
-        <p className={cn("mt-1", t.meta, colors.text.muted)}>
-          A model becomes assignable only after a green preflight. Adding a
-          model runs a 1-token validation ping.
-        </p>
-      </div>
+      {/* PART 3 §3: the h3 "Model catalog" heading removed — the
+          SettingsSection rail now owns it. The h3 "Add model" sub-heading
+          is kept per spec (rail h2 → card h3; no heading skip). */}
 
       {loadError && (
         <div
-          className={cn(t.meta, colors.status.down, "p-3 rounded border border-red-400 mb-4")}
+          className={cn(t.meta, colors.status.down, "p-3 rounded border", colors.statusBorder.down, "mb-4")}
           data-testid="model-catalog-load-error"
         >
           {loadError}
@@ -256,7 +281,7 @@ export function LlmModelCatalogCard() {
                 </td>
               </tr>
             )}
-            {!loading && models.length === 0 && (
+            {!loading && !loadError && models.length === 0 && (
               <tr>
                 <td
                   colSpan={4}
@@ -344,7 +369,7 @@ export function LlmModelCatalogCard() {
         className="mt-5 pt-4 border-t space-y-3"
         data-testid="model-add-form"
       >
-        <h4 className={cn(t.bodyStrong, colors.text.primary)}>Add model</h4>
+        <h3 className={cn(t.h3, colors.text.primary)}>Add model</h3>
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <label
@@ -427,18 +452,28 @@ export function LlmModelCatalogCard() {
 
         {addError && (
           <div
-            className={cn(t.meta, colors.status.down, "p-3 rounded border border-red-400")}
+            className={cn(t.meta, colors.status.down, "p-3 rounded border", colors.statusBorder.down)}
             data-testid="add-model-error"
           >
             {addError}
           </div>
         )}
-        {addSuccess && (
+
+        {/* PART 3 §5: three-outcome banner (green / amber / red). */}
+        {addOutcome?.kind === "validated" && (
           <div
-            className={cn(t.meta, colors.status.healthy, "p-3 rounded border border-green-400")}
+            className={cn(t.meta, colors.status.healthy, "p-3 rounded border", colors.statusBorder.healthy)}
             data-testid="add-model-success"
           >
-            {addSuccess}
+            {addOutcome.message}
+          </div>
+        )}
+        {addOutcome?.kind === "preflight_failed" && (
+          <div
+            className={cn(t.meta, colors.status.degraded, "p-3 rounded border", colors.statusBorder.degraded)}
+            data-testid="add-model-success"
+          >
+            {addOutcome.message}
           </div>
         )}
       </form>

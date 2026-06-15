@@ -3,14 +3,19 @@
  *
  * One row per LlmPurposeV1 value. Each row's dropdown lists only
  * assignable models — catalog models where `last_validation_status === "ok"`
- * AND `enabled` — plus an "— default —" option. Picking "default" means no
- * explicit assignment row (the purpose falls back to the platform default).
+ * AND `enabled` — plus an "— default —" option. Picking "default" calls
+ * DELETE /api/admin/llm-purpose-routing/:purpose so the reset truly
+ * persists (previously it only mutated local state).
  *
  * Assigning is a PUT. The backend re-checks the guardrail (catalog membership
  * + enabled + preflight-ok) and returns 422 with a {code, message} body if
  * it still rejects; we surface that message inline. The dropdown filter is a
  * client-side mirror of the same guardrail so non-assignable models never
  * appear as options in the happy path.
+ *
+ * PART 2: `models` is now lifted into the parent page — this card receives
+ * it as a prop so a model validated in the catalog card immediately becomes
+ * selectable here without a page reload or remount.
  *
  * Plain useState pattern (mirrors LlmProviderCard) — no react-query.
  */
@@ -19,11 +24,12 @@
 
 import { useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/elements/Button";
 import { Card } from "@/components/ui/elements/Card";
 import { AdminApiError } from "@/lib/api/admin";
 import {
   assignPurpose,
-  listLlmModels,
+  deletePurposeRouting,
   listPurposeRouting,
   LlmModelDetailError,
   type LlmModelV1,
@@ -35,15 +41,22 @@ import { colors, type as t } from "@/lib/design-tokens";
 const DEFAULT_OPTION = "__default__";
 const SUPER_ADMIN_REQUIRED = "super_admin required for this action.";
 
-/** The 7 purposes in display order, with their human labels (per ADR-0060). */
-const PURPOSES: ReadonlyArray<{ purpose: LlmPurpose; label: string }> = [
+/**
+ * The 4 executable purposes the runtime consumes, in display order + labels
+ * (PART 4-FE §1). Removed: review_summary, chat_reply, redaction_check,
+ * cost_estimate.
+ *
+ * `hint` is an optional muted sub-label rendered under the row's label.
+ */
+const PURPOSES: ReadonlyArray<{ purpose: LlmPurpose; label: string; hint?: string }> = [
   { purpose: "review_finding", label: "Code review (chunks)" },
   { purpose: "walkthrough", label: "PR walkthrough" },
-  { purpose: "analysis_curator", label: "Quick helper (Tier-1)" },
-  { purpose: "review_summary", label: "Review summary" },
-  { purpose: "chat_reply", label: "Chat replies" },
-  { purpose: "redaction_check", label: "Redaction check" },
-  { purpose: "cost_estimate", label: "Cost estimate" },
+  {
+    purpose: "analysis_curator",
+    label: "Quick helper (Tier-1)",
+    hint: "Also used by the retrieval reranker.",
+  },
+  { purpose: "fix_prompt", label: "Fix-prompt synthesis" },
 ];
 
 function assignableModels(models: LlmModelV1[]): LlmModelV1[] {
@@ -59,8 +72,12 @@ function mutationErrorMessage(err: unknown): string {
   return "Request failed";
 }
 
-export function LlmJobRoutingCard() {
-  const [models, setModels] = useState<LlmModelV1[]>([]);
+export interface LlmJobRoutingCardProps {
+  /** Shared model list from the parent page (PART 2). */
+  models: LlmModelV1[];
+}
+
+export function LlmJobRoutingCard({ models }: LlmJobRoutingCardProps) {
   const [assignments, setAssignments] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -71,15 +88,26 @@ export function LlmJobRoutingCard() {
   );
   const [rowSuccess, setRowSuccess] = useState<LlmPurpose | null>(null);
 
-  async function refresh() {
+  // L5 — auto-clear the "✓ Saved" affirmation after ~3 s so it doesn't
+  // persist until the next mutation.  The cleanup clears the timeout on
+  // unmount or whenever rowSuccess changes, preventing stale fires.
+  useEffect(() => {
+    if (rowSuccess === null) return;
+    const id = setTimeout(() => setRowSuccess(null), 3000);
+    return () => clearTimeout(id);
+  }, [rowSuccess]);
+
+  // Orphan (unrecognized) purpose reset state.
+  const [busyOrphan, setBusyOrphan] = useState<string | null>(null);
+  const [orphanError, setOrphanError] = useState<{ purpose: string; message: string } | null>(
+    null,
+  );
+
+  async function refreshRouting() {
     setLoading(true);
     setLoadError(null);
     try {
-      const [catalog, routing] = await Promise.all([
-        listLlmModels(),
-        listPurposeRouting(),
-      ]);
-      setModels(catalog);
+      const routing = await listPurposeRouting();
       const map: Record<string, string> = {};
       for (const a of routing) {
         map[a.purpose] = a.model_id;
@@ -93,21 +121,24 @@ export function LlmJobRoutingCard() {
   }
 
   useEffect(() => {
-    void refresh();
+    void refreshRouting();
   }, []);
 
   async function handleAssign(purpose: LlmPurpose, modelId: string) {
-    // "default" selection has no PUT semantic in the MVP backend (unassigned
-    // purposes simply lack a row); we only PUT for an explicit model.
     if (modelId === DEFAULT_OPTION) {
+      // PART 4-FE §2: call DELETE so the reset is truly persisted.
+      setBusyPurpose(purpose);
       setRowError(null);
       setRowSuccess(null);
-      // Optimistically reflect the cleared assignment in local state.
-      setAssignments((prev) => {
-        const next = { ...prev };
-        delete next[purpose];
-        return next;
-      });
+      try {
+        await deletePurposeRouting(purpose);
+        // Re-fetch routing so the displayed state matches the server.
+        await refreshRouting();
+      } catch (err: unknown) {
+        setRowError({ purpose, message: mutationErrorMessage(err) });
+      } finally {
+        setBusyPurpose(null);
+      }
       return;
     }
     setBusyPurpose(purpose);
@@ -124,28 +155,41 @@ export function LlmJobRoutingCard() {
     } catch (err: unknown) {
       setRowError({ purpose, message: mutationErrorMessage(err) });
       // Re-sync from the server so the dropdown reflects persisted truth.
-      await refresh();
+      await refreshRouting();
     } finally {
       setBusyPurpose(null);
     }
   }
 
+  async function handleResetOrphan(purpose: string) {
+    setBusyOrphan(purpose);
+    setOrphanError(null);
+    try {
+      await deletePurposeRouting(purpose);
+      await refreshRouting();
+    } catch (err: unknown) {
+      setOrphanError({ purpose, message: mutationErrorMessage(err) });
+    } finally {
+      setBusyOrphan(null);
+    }
+  }
+
   const options = assignableModels(models);
+
+  // Purposes in `assignments` that are NOT in the known PURPOSES list.
+  const knownPurposeSet = new Set(PURPOSES.map((p) => p.purpose));
+  const orphanKeys = Object.keys(assignments).filter(
+    (p) => !knownPurposeSet.has(p as LlmPurpose),
+  );
 
   return (
     <Card padding="lg" data-testid="llm-job-routing-card">
-      <div className="mb-4">
-        <h3 className={cn(t.h3, colors.text.primary)}>Job routing</h3>
-        <p className={cn("mt-1", t.meta, colors.text.muted)}>
-          Choose which model handles each job. Only validated, enabled models
-          can be assigned; an unassigned purpose falls back to the platform
-          default.
-        </p>
-      </div>
+      {/* PART 3 §3: the h3 "Job routing" heading is removed — the
+          SettingsSection rail now owns the section heading. */}
 
       {loadError && (
         <div
-          className={cn(t.meta, colors.status.down, "p-3 rounded border border-red-400 mb-4")}
+          className={cn(t.meta, colors.status.down, "p-3 rounded border", colors.statusBorder.down, "mb-4")}
           data-testid="job-routing-load-error"
         >
           {loadError}
@@ -157,7 +201,7 @@ export function LlmJobRoutingCard() {
           <p className={cn(t.meta, colors.text.muted)}>Loading…</p>
         )}
         {!loading &&
-          PURPOSES.map(({ purpose, label }) => {
+          PURPOSES.map(({ purpose, label, hint }) => {
             const current = assignments[purpose] ?? DEFAULT_OPTION;
             // If the persisted model is no longer assignable (e.g. it lost
             // its preflight), still show it as a selected option so the row
@@ -176,6 +220,15 @@ export function LlmJobRoutingCard() {
                   className={cn(t.body, colors.text.primary, "min-w-48")}
                 >
                   {label}
+                  {hint && (
+                    <span
+                      className={cn(t.caption, colors.text.faint, "block")}
+                      data-testid={`routing-label-hint-${purpose}`}
+                      title={hint}
+                    >
+                      {hint}
+                    </span>
+                  )}
                 </label>
                 <select
                   id={`routing-${purpose}`}
@@ -234,6 +287,54 @@ export function LlmJobRoutingCard() {
           </p>
         )}
       </div>
+
+      {/* Unrecognized (orphan) assignments from the backend — legacy rows
+          that are not in the 4-purpose PURPOSES list. Show as a muted
+          cleanup affordance so they can be cleared without a page reload. */}
+      {!loading && orphanKeys.length > 0 && (
+        <div
+          className={cn("mt-5 pt-4 border-t", colors.divider)}
+          data-testid="job-routing-orphan-block"
+        >
+          <p className={cn(t.meta, colors.text.muted, "mb-2")}>
+            Unrecognized assignments
+          </p>
+          <div className="space-y-2">
+            {orphanKeys.map((purpose) => (
+              <div
+                key={purpose}
+                className={cn("flex flex-wrap items-center gap-3")}
+                data-testid={`routing-orphan-${purpose}`}
+              >
+                <span className={cn(t.body, colors.text.muted, "font-mono min-w-48")}>
+                  {purpose}
+                </span>
+                <span className={cn(t.caption, colors.text.faint)}>
+                  → {assignments[purpose]}
+                </span>
+                <Button
+                  variant="secondary"
+                  size="xs"
+                  type="button"
+                  disabled={busyOrphan === purpose}
+                  onClick={() => void handleResetOrphan(purpose)}
+                  data-testid={`routing-orphan-reset-${purpose}`}
+                >
+                  {busyOrphan === purpose ? "…" : "Reset"}
+                </Button>
+                {orphanError?.purpose === purpose && (
+                  <span
+                    className={cn(t.caption, colors.status.down)}
+                    data-testid={`routing-orphan-error-${purpose}`}
+                  >
+                    {orphanError.message}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

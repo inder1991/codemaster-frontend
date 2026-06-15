@@ -149,8 +149,9 @@ export function LlmProviderCard({ role }: LlmProviderCardProps) {
   const requiresRegion = provider === "bedrock";
   const trimmedApiKey = apiKey.trim();
   const apiKeyValid = trimmedApiKey.length >= MIN_API_KEY_LENGTH;
-  const cardTitle =
-    role === "primary" ? "Primary LLM Provider" : "Secondary LLM Provider";
+  // PART 3 §3: the SettingsSection rail owns the "Providers" <h2>; the card carries only the
+  // Primary/Secondary distinction as a sub-heading.
+  const cardTitle = role === "primary" ? "Primary" : "Secondary";
   const roleTestId = role === "primary" ? "primary" : "secondary";
 
   // When provider changes: clear the test result (stale for the new
@@ -216,7 +217,7 @@ export function LlmProviderCard({ role }: LlmProviderCardProps) {
     <Card padding="md" data-testid={`llm-provider-card-${roleTestId}`}>
       {/* Card header */}
       <div className="mb-3">
-        <h2 className={cn(t.h2, colors.text.primary)}>{cardTitle}</h2>
+        <h3 className={cn(t.h3, colors.text.primary)}>{cardTitle}</h3>
         {role === "secondary" && (
           <p
             className={cn(

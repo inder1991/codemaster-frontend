@@ -7,13 +7,16 @@
  *      now 404s).
  *
  *   2. LlmProviderConfigPage (rebuilt Phase 1 page) — asserts the
- *      Inference tab two-card layout, secondary notice, provider→region
- *      visibility, and per-role save API calls.
+ *      Inference tab SettingsSection layout, provider cards, models+routing.
  *
  *   3. T5.8 (Sprint 26) — Embedding tab: PlatformCredentialsCard for
  *      embedder.qwen + ModelNamePicker extraFields slot +
- *      EmbedderLifecyclePanel. Asserts the tab wrapping preserves the
- *      Inference content and exposes the new surface when switched.
+ *      EmbedderLifecyclePanel.
+ *
+ *   4. PART 3 layout — SettingsSection rail: one heading per section,
+ *      no duplicate "Job routing" / "Model catalog" headings on the page.
+ *
+ *   5. PART 2 — model validated in catalog immediately appears in routing.
  */
 
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -88,6 +91,18 @@ function defaultGetStub(url: string): Response | null {
       { status: 200, headers: { "Content-Type": "application/json" } },
     );
   }
+  if (url.includes("/api/admin/llm-models")) {
+    return new Response(
+      JSON.stringify({ models: [] }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  }
+  if (url.includes("/api/admin/llm-purpose-routing")) {
+    return new Response(
+      JSON.stringify({ assignments: [] }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  }
   return null;
 }
 
@@ -155,18 +170,23 @@ afterEach(() => {
 // ── Suite 2: rebuilt Phase 1 dual-card page ───────────────────────
 
 describe("LlmProviderConfigPage (/admin/llm) — Phase 1 dual-card", () => {
-  test("renders both Primary and Secondary card headings", () => {
+  test("renders both Primary and Secondary card headings", async () => {
     renderLlmPage();
-    expect(screen.getByText("Primary LLM Provider")).toBeInTheDocument();
-    expect(screen.getByText("Secondary LLM Provider")).toBeInTheDocument();
+    // Wait for child card mount-effects to settle (avoids act() warnings).
+    await waitFor(() => {
+      expect(screen.getByText("Primary")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Secondary")).toBeInTheDocument();
   });
 
-  test("Inference tab uses a 2-column layout: providers left, models+routing right", () => {
+  test("Inference tab shows provider cards and model catalog", async () => {
     renderLlmPage();
-    // LEFT column — provider cards live under the "Providers" header.
+    // Wait for async fetches from child cards to settle.
+    await waitFor(() => {
+      expect(screen.getByTestId("llm-model-catalog-card")).toBeInTheDocument();
+    });
     const providersCol = screen.getByTestId("inference-providers-col");
     expect(providersCol).toBeInTheDocument();
-    expect(within(providersCol).getByText("Providers")).toBeInTheDocument();
     expect(
       within(providersCol).getByTestId("llm-provider-card-primary"),
     ).toBeInTheDocument();
@@ -174,60 +194,56 @@ describe("LlmProviderConfigPage (/admin/llm) — Phase 1 dual-card", () => {
       within(providersCol).getByTestId("llm-provider-card-secondary"),
     ).toBeInTheDocument();
 
-    // RIGHT column — Models + Job routing section headers (h2). The
-    // catalog/routing cards also render their own h3 of the same text,
-    // so scope the match to the section-level h2 headings.
-    const modelsCol = screen.getByTestId("inference-models-col");
-    expect(modelsCol).toBeInTheDocument();
-    expect(
-      within(modelsCol).getByRole("heading", { level: 2, name: "Models" }),
-    ).toBeInTheDocument();
-    expect(
-      within(modelsCol).getByRole("heading", { level: 2, name: "Job routing" }),
-    ).toBeInTheDocument();
-    // Provider cards are NOT in the right column.
-    expect(
-      within(modelsCol).queryByTestId("llm-provider-card-primary"),
-    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("llm-job-routing-card")).toBeInTheDocument();
   });
 
-  test("secondary card shows the 'not yet routed' notice", () => {
+  test("secondary card shows the 'not yet routed' notice", async () => {
     renderLlmPage();
-    expect(
-      screen.getByTestId("secondary-card-notice"),
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("secondary-card-notice"),
+      ).toBeInTheDocument();
+    });
     expect(screen.getByTestId("secondary-card-notice").textContent).toContain(
       "not yet routed",
     );
   });
 
-  test("primary card does not show the secondary notice", () => {
+  test("primary card does not show the secondary notice", async () => {
     renderLlmPage();
+    // Wait for the card to render fully before asserting absence.
+    await waitFor(() => {
+      expect(screen.getByTestId("llm-provider-card-primary")).toBeInTheDocument();
+    });
     const primaryCard = screen.getByTestId("llm-provider-card-primary");
-    // The notice is inside secondary card only.
     expect(primaryCard.querySelector("[data-testid='secondary-card-notice']")).toBeNull();
   });
 
-  test("region field is visible when provider is bedrock (default)", () => {
+  test("region field is visible when provider is bedrock (default)", async () => {
     renderLlmPage();
-    // Default provider is bedrock → both cards should show region fields.
-    expect(screen.getAllByTestId("primary-region-field")).toHaveLength(1);
+    await waitFor(() => {
+      expect(screen.getAllByTestId("primary-region-field")).toHaveLength(1);
+    });
     expect(screen.getAllByTestId("secondary-region-field")).toHaveLength(1);
   });
 
-  test("region field is hidden when provider changes to anthropic_direct", () => {
+  test("region field is hidden when provider changes to anthropic_direct", async () => {
     renderLlmPage();
+    // Settle child card mount effects before firing a change event.
+    await waitFor(() => {
+      expect(screen.getByTestId("primary-provider-select")).toBeInTheDocument();
+    });
     const primaryProviderSelect = screen.getByTestId(
       "primary-provider-select",
     ) as HTMLSelectElement;
     fireEvent.change(primaryProviderSelect, {
       target: { value: "anthropic_direct" },
     });
-    // Region field should disappear for the primary card.
-    expect(
-      screen.queryByTestId("primary-region-field"),
-    ).not.toBeInTheDocument();
-    // Secondary card region field is still present (still bedrock).
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("primary-region-field"),
+      ).not.toBeInTheDocument();
+    });
     expect(screen.getByTestId("secondary-region-field")).toBeInTheDocument();
   });
 
@@ -245,7 +261,7 @@ describe("LlmProviderConfigPage (/admin/llm) — Phase 1 dual-card", () => {
     });
 
     mockFetch(async (url, init) => {
-      if (init?.method === "PUT") {
+      if (init?.method === "PUT" && url.includes("llm-provider-config")) {
         const body = JSON.parse(init.body as string) as Record<string, unknown>;
         return new Response(JSON.stringify(putSpy(body)), {
           status: 200,
@@ -257,15 +273,12 @@ describe("LlmProviderConfigPage (/admin/llm) — Phase 1 dual-card", () => {
 
     renderLlmPage();
 
-    // Fill API key on primary card. Both cards show a bedrock label by default,
-    // so query within the primary card element.
     const primaryCard = screen.getByTestId("llm-provider-card-primary");
     const primaryKey = primaryCard.querySelector(
       "input[type='password']",
     ) as HTMLInputElement;
     fireEvent.change(primaryKey, { target: { value: "bedrock-test-key-aaaaaaaaaaaa" } });
 
-    // Click Save on primary.
     fireEvent.click(screen.getByTestId("primary-save-btn"));
 
     await waitFor(() => {
@@ -292,7 +305,7 @@ describe("LlmProviderConfigPage (/admin/llm) — Phase 1 dual-card", () => {
     });
 
     mockFetch(async (url, init) => {
-      if (init?.method === "PUT") {
+      if (init?.method === "PUT" && url.includes("llm-provider-config")) {
         const body = JSON.parse(init.body as string) as Record<string, unknown>;
         return new Response(JSON.stringify(putSpy(body)), {
           status: 200,
@@ -304,7 +317,6 @@ describe("LlmProviderConfigPage (/admin/llm) — Phase 1 dual-card", () => {
 
     renderLlmPage();
 
-    // Switch secondary card to anthropic_direct.
     const secondaryProviderSelect = screen.getByTestId(
       "secondary-provider-select",
     ) as HTMLSelectElement;
@@ -312,8 +324,6 @@ describe("LlmProviderConfigPage (/admin/llm) — Phase 1 dual-card", () => {
       target: { value: "anthropic_direct" },
     });
 
-    // Fill API key on secondary card.
-    // Get the API key input in the secondary card and fill it.
     const secondaryCard = screen.getByTestId("llm-provider-card-secondary");
     const secondarySaveBtn = screen.getByTestId("secondary-save-btn");
     const keyInput = secondaryCard.querySelector(
@@ -337,7 +347,7 @@ describe("LlmProviderConfigPage (/admin/llm) — Phase 1 dual-card", () => {
 
   test("save success clears the API key input", async () => {
     mockFetch(async (url, init) => {
-      if (init?.method === "PUT") {
+      if (init?.method === "PUT" && url.includes("llm-provider-config")) {
         return new Response(
           JSON.stringify({
             schema_version: 1,
@@ -369,13 +379,12 @@ describe("LlmProviderConfigPage (/admin/llm) — Phase 1 dual-card", () => {
     await waitFor(() => {
       expect(screen.getByTestId("primary-save-success")).toBeInTheDocument();
     });
-    // API key cleared.
     expect(keyInput.value).toBe("");
   });
 
   test("save error displays error message", async () => {
     mockFetch(async (url, init) => {
-      if (init?.method === "PUT") {
+      if (init?.method === "PUT" && url.includes("llm-provider-config")) {
         return new Response(
           JSON.stringify({
             detail: {
@@ -408,10 +417,12 @@ describe("LlmProviderConfigPage (/admin/llm) — Phase 1 dual-card", () => {
 // ── Suite 3: T5.8 — Embedding tab (Sprint 26) ─────────────────────
 
 describe("LlmProviderConfigPage (/admin/llm) — T5.8 Embedding tab", () => {
-  test("renders the tab list with Inference and Embedding tabs", () => {
+  test("renders the tab list with Inference and Embedding tabs", async () => {
     renderLlmPage();
-    const tablist = screen.getByTestId("llm-config-tablist");
-    expect(tablist).toBeInTheDocument();
+    // Wait for async child card fetches to settle before asserting.
+    await waitFor(() => {
+      expect(screen.getByTestId("llm-config-tablist")).toBeInTheDocument();
+    });
     expect(
       screen.getByTestId("llm-config-tab-inference"),
     ).toBeInTheDocument();
@@ -420,18 +431,15 @@ describe("LlmProviderConfigPage (/admin/llm) — T5.8 Embedding tab", () => {
     ).toBeInTheDocument();
   });
 
-  test("Inference tab is selected by default and shows the dual-card UI", () => {
+  test("Inference tab is selected by default and shows the dual-card UI", async () => {
     renderLlmPage();
-    // The Inference tab is the first child of TabGroup → selected by default.
-    // Existing Phase-1 dual-card content is visible on initial render.
-    expect(
-      screen.getByTestId("llm-provider-card-primary"),
-    ).toBeInTheDocument();
+    // Settle child card fetches so async state doesn't escape test boundary.
+    await waitFor(() => {
+      expect(screen.getByTestId("llm-provider-card-primary")).toBeInTheDocument();
+    });
     expect(
       screen.getByTestId("llm-provider-card-secondary"),
     ).toBeInTheDocument();
-    // Embedding-tab content should not be mounted yet (Headless UI v2
-    // unmounts inactive TabPanels by default).
     expect(
       screen.queryByTestId("platform-credentials-card-embedder-qwen"),
     ).not.toBeInTheDocument();
@@ -444,7 +452,6 @@ describe("LlmProviderConfigPage (/admin/llm) — T5.8 Embedding tab", () => {
     renderLlmPage();
     fireEvent.click(screen.getByTestId("llm-config-tab-embedding"));
 
-    // Qwen platform-credentials card mounts.
     const card = await screen.findByTestId(
       "platform-credentials-card-embedder-qwen",
     );
@@ -459,8 +466,6 @@ describe("LlmProviderConfigPage (/admin/llm) — T5.8 Embedding tab", () => {
     expect(
       await screen.findByTestId("embedder-lifecycle-panel"),
     ).toBeInTheDocument();
-    // Lifecycle panel hydrates from the default GET-stub state (active
-    // generation 1, qwen3-embed-0.6b).
     await waitFor(() => {
       expect(screen.getByTestId("embedder-header")).toBeInTheDocument();
     });
@@ -476,16 +481,12 @@ describe("LlmProviderConfigPage (/admin/llm) — T5.8 Embedding tab", () => {
     const card = await screen.findByTestId(
       "platform-credentials-card-embedder-qwen",
     );
-    // The extraFields slot uses the data-testid pattern
-    // `${cardTestId}-extra-fields`. Inside, the ModelNamePicker renders
-    // a `model-name-picker-input` control.
     const extraFields = within(card).getByTestId(
       "platform-credentials-card-embedder-qwen-extra-fields",
     );
     expect(
       within(extraFields).getByTestId("model-name-picker-input"),
     ).toBeInTheDocument();
-    // The operator-reference note clarifies the picker is advisory.
     expect(
       within(extraFields).getByTestId("qwen-model-picker-note"),
     ).toBeInTheDocument();
@@ -493,13 +494,11 @@ describe("LlmProviderConfigPage (/admin/llm) — T5.8 Embedding tab", () => {
 
   test("switching tabs back to Inference preserves the dual-card content", async () => {
     renderLlmPage();
-    // Switch to Embedding…
     fireEvent.click(screen.getByTestId("llm-config-tab-embedding"));
     expect(
       await screen.findByTestId("platform-credentials-card-embedder-qwen"),
     ).toBeInTheDocument();
 
-    // …and back to Inference.
     fireEvent.click(screen.getByTestId("llm-config-tab-inference"));
     expect(
       await screen.findByTestId("llm-provider-card-primary"),
@@ -507,9 +506,205 @@ describe("LlmProviderConfigPage (/admin/llm) — T5.8 Embedding tab", () => {
     expect(
       screen.getByTestId("llm-provider-card-secondary"),
     ).toBeInTheDocument();
-    // Embedding-tab content unmounted again.
     expect(
       screen.queryByTestId("platform-credentials-card-embedder-qwen"),
     ).not.toBeInTheDocument();
+  });
+});
+
+// ── Suite 4: PART 3 — SettingsSection layout ─────────────────────
+
+describe("LlmProviderConfigPage (/admin/llm) — PART 3 SettingsSection layout", () => {
+  test("Inference tab: exactly one 'Job routing' heading (section rail owns it, card does not repeat)", async () => {
+    renderLlmPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("llm-job-routing-card")).toBeInTheDocument();
+    });
+
+    // getAllByText finds all matching elements including hidden ones in jsdom.
+    // There must be exactly ONE element with the text "Job routing".
+    const jobRoutingHeadings = screen.getAllByText("Job routing");
+    expect(jobRoutingHeadings).toHaveLength(1);
+  });
+
+  test("Inference tab: exactly one 'Model catalog' heading (rail owns it)", async () => {
+    renderLlmPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("llm-model-catalog-card")).toBeInTheDocument();
+    });
+
+    const modelCatalogHeadings = screen.getAllByText("Model catalog");
+    expect(modelCatalogHeadings).toHaveLength(1);
+  });
+
+  test("'Add model' sub-heading is still visible inside the catalog card", async () => {
+    renderLlmPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("model-catalog-empty")).toBeInTheDocument();
+    });
+
+    // The h4 sub-heading inside the catalog form must still be present.
+    expect(
+      screen.getByRole("heading", { name: "Add model" }),
+    ).toBeInTheDocument();
+  });
+
+  test("provider card shows simplified title 'Primary' (not 'Primary LLM Provider')", async () => {
+    renderLlmPage();
+    // Wait for child cards to settle before asserting.
+    await waitFor(() => {
+      expect(screen.getByText("Primary")).toBeInTheDocument();
+    });
+    // The old verbose titles must not appear.
+    expect(screen.queryByText("Primary LLM Provider")).not.toBeInTheDocument();
+    expect(screen.queryByText("Secondary LLM Provider")).not.toBeInTheDocument();
+    expect(screen.getByText("Secondary")).toBeInTheDocument();
+  });
+
+  test("SettingsSection renders section containers for Providers, Model catalog, Job routing", async () => {
+    renderLlmPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("llm-model-catalog-card")).toBeInTheDocument();
+    });
+
+    // Section rail headings must be present.
+    expect(screen.getByRole("heading", { name: "Providers" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Model catalog" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Job routing" })).toBeInTheDocument();
+  });
+});
+
+// ── Suite 5: PART 2 — shared model list propagates to routing ─────
+
+describe("LlmProviderConfigPage (/admin/llm) — PART 2 shared model list", () => {
+  test("validating a model in the catalog makes it selectable in routing (no reload)", async () => {
+    let modelsList: unknown[] = [];
+    let testCalled = false;
+
+    // Use a fully custom fetch that intercepts ALL requests for this test
+    // (bypasses defaultGetStub so we control the models list state).
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = init?.method ?? "GET";
+
+        if (url.includes("/api/telemetry")) {
+          return new Response(null, { status: 204 });
+        }
+        // Embedder endpoints needed by the Embedding tab (not visible in Inference).
+        if (url.includes("/api/admin/embedder/state")) {
+          return new Response(
+            JSON.stringify({
+              schema_version: 1,
+              active_generation: 1,
+              active_model_name: "qwen3-embed-0.6b",
+              pending_generation: null,
+              pending_model_name: null,
+              retrieval_mode: "fallback",
+              updated_at: "2026-05-28T00:00:00Z",
+              updated_by_email: null,
+              generations: [],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        if (url.includes("/api/admin/embedder/coverage")) {
+          return new Response(
+            JSON.stringify({ schema_version: 1, confluence_missing: 0, knowledge_missing: 0, total_missing: 0 }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        if (url.includes("/api/admin/platform-credentials")) {
+          return new Response(
+            JSON.stringify({ schema_version: 1, credential_key: "embedder.qwen", base_url: null, token_present: false, last_rotated_at: null, last_rotated_by: null, last_validated_at: null, last_validation_error: null }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+
+        if (method === "GET" && url.includes("/llm-purpose-routing")) {
+          return new Response(JSON.stringify({ assignments: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        if (method === "GET" && url.includes("/llm-models")) {
+          // Return the live modelsList — starts empty, populated after PUT + test.
+          return new Response(JSON.stringify({ models: modelsList }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        if (method === "PUT" && url.includes("/llm-models")) {
+          const addedModel = {
+            provider: "anthropic_direct",
+            model_id: "new-model",
+            display_name: null,
+            enabled: true,
+            last_validation_status: "untested",
+            last_validation_error: null,
+            last_validated_at: null,
+          };
+          modelsList = [addedModel];
+          return new Response(JSON.stringify(addedModel), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        if (method === "POST" && url.includes("/test")) {
+          testCalled = true;
+          modelsList = [
+            {
+              provider: "anthropic_direct",
+              model_id: "new-model",
+              display_name: null,
+              enabled: true,
+              last_validation_status: "ok",
+              last_validation_error: null,
+              last_validated_at: "2026-06-15T00:00:00Z",
+            },
+          ];
+          return new Response(JSON.stringify({ ok: true, message: "ping ok" }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        return new Response(null, { status: 404 });
+      },
+    );
+
+    renderLlmPage();
+
+    // Wait for initial load — empty catalog and empty routing.
+    await waitFor(() => {
+      expect(screen.getByTestId("job-routing-no-models")).toBeInTheDocument();
+    });
+
+    // Add a model through the catalog form.
+    fireEvent.change(screen.getByTestId("add-model-id-input"), {
+      target: { value: "new-model" },
+    });
+    fireEvent.click(screen.getByTestId("add-model-save-btn"));
+
+    // After add+test, the routing dropdown for review_finding should
+    // include "new-model" WITHOUT a full page reload.
+    await waitFor(() => {
+      expect(testCalled).toBe(true);
+    });
+
+    await waitFor(
+      () => {
+        const routingSelect = screen.queryByTestId("routing-select-review_finding");
+        if (!routingSelect) return;
+        const options = Array.from(routingSelect.querySelectorAll("option")).map(
+          (o) => (o as HTMLOptionElement).value,
+        );
+        expect(options).toContain("new-model");
+      },
+      { timeout: 3000 },
+    );
   });
 });

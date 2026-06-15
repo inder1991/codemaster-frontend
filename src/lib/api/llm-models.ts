@@ -52,28 +52,44 @@ export interface LlmModelTestResult {
   message: string;
 }
 
-/** One purpose→model assignment row (`core.llm_purpose_model`). */
-export interface LlmPurposeModelV1 {
-  purpose: LlmPurpose;
-  model_id: string;
-}
-
-/** PUT body for assigning a purpose to a model. */
-export interface LlmPurposeRoutingUpsertV1 {
-  schema_version: 1;
-  purpose: LlmPurpose;
-  model_id: string;
-}
-
-/** The 7 LlmPurposeV1 enum values. */
-export type LlmPurpose =
+/**
+ * ALL 8 purpose values the backend/DB can store (generated contract:
+ * `LlmPurposeModelV1.purpose` in contracts.ts ~2672).
+ * Used for GET response rows so legacy/orphan rows typecheck cleanly.
+ */
+export type AnyLlmPurpose =
   | "review_summary"
   | "review_finding"
   | "chat_reply"
   | "walkthrough"
   | "redaction_check"
   | "cost_estimate"
-  | "analysis_curator";
+  | "analysis_curator"
+  | "fix_prompt";
+
+/** The 4 executable LlmPurposeV1 values the runtime consumes (WRITE only). */
+export type LlmPurpose =
+  | "review_finding"
+  | "walkthrough"
+  | "analysis_curator"
+  | "fix_prompt";
+
+/**
+ * One purpose→model assignment row from the GET response (`core.llm_purpose_model`).
+ * Uses the broad AnyLlmPurpose so legacy/orphan rows returned by the backend
+ * are not silently truncated.
+ */
+export interface LlmPurposeModelV1 {
+  purpose: AnyLlmPurpose;
+  model_id: string;
+}
+
+/** PUT body for assigning a purpose to a model (narrow 4-value set only). */
+export interface LlmPurposeRoutingUpsertV1 {
+  schema_version: 1;
+  purpose: LlmPurpose;
+  model_id: string;
+}
 
 /** 409 body when a delete is blocked by an in-use model. */
 export interface LlmModelInUseDetail {
@@ -230,6 +246,12 @@ export async function upsertLlmModel(
     if (res.status === 403) {
       throw new AdminApiError("forbidden", 403, LLM_MODELS_BASE, null);
     }
+    if (res.status === 409) {
+      const json = await _parseJson(res);
+      const detail = _extractDetail(json);
+      if (detail) throw new LlmModelDetailError(detail);
+      throw new AdminApiError("conflict", 409, LLM_MODELS_BASE, json);
+    }
     if (res.status === 422) {
       const json = await _parseJson(res);
       const detail = _extractDetail(json);
@@ -374,8 +396,9 @@ export async function listPurposeRouting(): Promise<LlmPurposeModelV1[]> {
         null,
       );
     }
-    const json = (await res.json()) as { assignments: LlmPurposeModelV1[] };
-    return json.assignments;
+    const json = (await res.json()) as { assignments?: LlmPurposeModelV1[] };
+    // Defend against a malformed/partial body — mirrors the guard in listLlmModels.
+    return Array.isArray(json?.assignments) ? json.assignments : [];
   } finally {
     clearTimeout(timer);
   }
@@ -422,6 +445,45 @@ export async function assignPurpose(
       );
     }
     return (await res.json()) as LlmPurposeModelV1;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ── Purpose routing: delete (reset to default) ────────────────────
+
+/**
+ * DELETE /api/admin/llm-purpose-routing/:purpose
+ * Resets a purpose to default (no explicit assignment).
+ * Both 204 (deleted) and 404 (already default) are treated as success.
+ */
+export async function deletePurposeRouting(purpose: string): Promise<void> {
+  const url = `${LLM_PURPOSE_ROUTING_BASE}/${encodeURIComponent(purpose)}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      method: "DELETE",
+      credentials: "include",
+      signal: controller.signal,
+      headers: _mutationHeaders(),
+    });
+    // 204 = successfully deleted; 404 = already at default. Both are success.
+    if (res.status === 204 || res.status === 404) return;
+    if (res.status === 401) {
+      throw new AdminApiError("unauthenticated", 401, url, null);
+    }
+    if (res.status === 403) {
+      throw new AdminApiError("forbidden", 403, url, null);
+    }
+    if (!res.ok) {
+      throw new AdminApiError(
+        `llm-purpose-routing DELETE failed (${res.status})`,
+        res.status,
+        url,
+        null,
+      );
+    }
   } finally {
     clearTimeout(timer);
   }

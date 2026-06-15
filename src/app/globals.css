@@ -292,6 +292,20 @@ body {
 .c-statusbg-dim { background-color: oklch(94% 0.03 320); }
 .dark .c-statusbg-dim { background-color: oklch(26% 0.05 320); }
 
+/* Status BORDERS (for tinted callouts + pass/fail selection cards).
+ * Pair with the matching statusbg. Stronger chroma than the bg so the
+ * edge reads, tuned down in light mode to avoid garishness. */
+.c-statusborder-healthy { border-color: oklch(80% 0.08 165); }
+.dark .c-statusborder-healthy { border-color: oklch(42% 0.10 165); }
+.c-statusborder-degraded { border-color: oklch(82% 0.09 80); }
+.dark .c-statusborder-degraded { border-color: oklch(44% 0.11 80); }
+.c-statusborder-down { border-color: oklch(80% 0.10 25); }
+.dark .c-statusborder-down { border-color: oklch(46% 0.12 25); }
+.c-statusborder-info { border-color: oklch(82% 0.08 235); }
+.dark .c-statusborder-info { border-color: oklch(44% 0.10 235); }
+.c-statusborder-dim { border-color: oklch(82% 0.04 320); }
+.dark .c-statusborder-dim { border-color: oklch(44% 0.06 320); }
+
 /* Status DOTS (for the chip's leading dot). */
 .c-statusdot-healthy { background-color: oklch(72% 0.13 165); }
 .dark .c-statusdot-healthy { background-color: oklch(76% 0.13 165); }
@@ -318,6 +332,27 @@ body {
 .c-accent-ring:focus-visible {
   outline: 2px solid oklch(72% 0.16 65);
   outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------
+ * PART 3 §4 — Button disabled treatment.
+ *
+ * The `.c-btn-disabled:disabled` selector beats the single-class
+ * variant bg, so this overrides the amber/danger background for
+ * disabled buttons without touching `opacity` (which muddies the
+ * amber primary to brown in dark mode).
+ * --------------------------------------------------------------- */
+.c-btn-disabled:disabled {
+  background-color: oklch(88% 0.022 80);
+  color: oklch(58% 0.01 80);
+  border-color: oklch(78% 0.025 80);
+  opacity: 1;
+}
+.dark .c-btn-disabled:disabled {
+  background-color: oklch(30% 0.012 270);
+  color: oklch(55% 0.006 80);
+  border-color: oklch(40% 0.014 270);
+  opacity: 1;
 }
 
 /* ---------------------------------------------------------------
