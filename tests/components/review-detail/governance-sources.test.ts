@@ -1,10 +1,13 @@
 import { describe, it, expect } from "vitest";
 
 import { groupCitationsBySource } from "@/components/review-detail/governance-sources";
-import type { ReviewFindingItemV1 } from "@/lib/api/admin";
+import type {
+  ReviewFindingCitationV1,
+  ReviewFindingItemV1,
+} from "@/lib/api/admin";
 
 function finding(
-  citations: ReviewFindingItemV1["citations"],
+  citations: ReviewFindingCitationV1[],
 ): ReviewFindingItemV1 {
   return {
     finding_id: crypto.randomUUID(),

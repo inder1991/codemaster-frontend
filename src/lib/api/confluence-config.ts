@@ -122,10 +122,15 @@ export async function putConfluenceConfig(body: ConfluenceConfigUpdateV1): Promi
  * Probe Confluence connectivity with the given base_url + token WITHOUT persisting. Never throws on a
  * failed probe — surfaces {ok:false,message}. Returns ok:false with a clear note when the probe adapter is
  * unwired in this deployment (HTTP 503). Mirrors testLlmCredentials' shape.
+ *
+ * auth_email mirrors the PUT body: send it for Atlassian Cloud (HTTP-Basic email:token); omit it for a
+ * Server/DC Bearer PAT. Without it the backend falls back to Bearer auth, which Cloud rejects — so a Cloud
+ * probe that omits the email reports a misleading failure.
  */
 export async function testConfluenceConfig(body: {
   base_url: string;
   token: string;
+  auth_email?: string;
 }): Promise<ConfluenceTestResult> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TEST_TIMEOUT_MS);

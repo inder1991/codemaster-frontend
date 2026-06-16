@@ -456,4 +456,22 @@ describe("IntegrationsPage — wiring", () => {
       screen.queryByTestId("platform-credentials-card-confluence"),
     ).toBeNull();
   });
+
+  // ── Make the per-space Pages + Approve UI reachable ──────────────
+  //    The route /admin/confluence/spaces/{integration_id}/pages had no
+  //    nav entry and nothing linked to it. Each confluence_space row now
+  //    surfaces a link to its Pages/Approve view.
+
+  it("links each confluence_space row to its per-space Pages/Approve view", async () => {
+    mockFetch(async () =>
+      jsonResponse({ rows: [makeIntegration()], next_cursor: null }),
+    );
+    renderPage();
+
+    const link = await screen.findByRole("link", { name: /pages/i });
+    expect(link).toHaveAttribute(
+      "href",
+      "/admin/confluence/spaces/int-101/pages",
+    );
+  });
 });

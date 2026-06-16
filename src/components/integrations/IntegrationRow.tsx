@@ -7,7 +7,12 @@
 
 "use client";
 
-import { ArrowTopRightOnSquareIcon, BookOpenIcon } from "@heroicons/react/24/outline";
+import Link from "next/link";
+import {
+  ArrowTopRightOnSquareIcon,
+  BookOpenIcon,
+  DocumentTextIcon,
+} from "@heroicons/react/24/outline";
 
 import { Badge } from "@/components/ui/elements/Badge";
 import { Button } from "@/components/ui/elements/Button";
@@ -79,14 +84,34 @@ export function IntegrationRow({ integration, onRemove }: IntegrationRowProps) {
           )}
         </p>
       </div>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => onRemove(integration.integration_id)}
-        leadingIcon={<ArrowTopRightOnSquareIcon className="size-4" />}
-      >
-        Remove
-      </Button>
+      <div className="flex shrink-0 items-center gap-x-2">
+        {/* The per-space Pages + Approve view is reachable only from here — it has no
+            nav entry. Route is parameterized by integration_id (UUID), matching the
+            backend path-param shape. Scoped to confluence_space (the only kind today). */}
+        {integration.kind === "confluence_space" ? (
+          <Link
+            href={`/admin/confluence/spaces/${integration.integration_id}/pages`}
+            className={cn(
+              "inline-flex items-center gap-x-1.5 underline underline-offset-2",
+              t.meta,
+              colors.text.muted,
+              colors.hover.text.primary,
+              "focus-visible:outline focus-visible:outline-2 focus-visible:outline-[oklch(72%_0.16_65)]",
+            )}
+          >
+            <DocumentTextIcon aria-hidden="true" className="size-4" />
+            Review pages
+          </Link>
+        ) : null}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onRemove(integration.integration_id)}
+          leadingIcon={<ArrowTopRightOnSquareIcon className="size-4" />}
+        >
+          Remove
+        </Button>
+      </div>
     </div>
   );
 }
