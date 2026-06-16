@@ -464,11 +464,39 @@ export type QuarantinedChunksPageV1 =
 
 // ── Page approvals (Sub-spec C T7 backend, T14 frontend) ─────────
 
-export type PageWithApprovalV1 =
-  components["schemas"]["PageWithApprovalV1"];
+/** Ingest lifecycle of a Confluence page, independent of approval.
+ *
+ *   * `ingested` — at least one active chunk exists in the corpus.
+ *   * `not_ingested` — no active chunk yet (page is on the live list
+ *     but unfetched, or approved-and-awaiting-resync).
+ */
+export type PageIngestStatus = "ingested" | "not_ingested";
 
+/** Confluence live-approval-view (Phase 6, 2026-06-16).
+ *
+ * The backend adds `ingest_status` to the per-page row alongside the
+ * existing `approval_status`. Hand-authored here (rather than via the
+ * generated `components["schemas"]` re-export) because the backend's
+ * openapi.json hasn't been regenerated for this field yet; once
+ * `make codegen` lands it, this intersection collapses to the plain
+ * re-export. Mirrors the `AuditSearchResponseV1` precedent below. */
+export type PageWithApprovalV1 =
+  components["schemas"]["PageWithApprovalV1"] & {
+    ingest_status: PageIngestStatus;
+  };
+
+/** Confluence live-approval-view (Phase 6, 2026-06-16).
+ *
+ * `live_list_available` is `false` when the Confluence live page list
+ * couldn't be fetched (auth/rate-limit/outage) and the endpoint
+ * degraded to listing only already-ingested pages. The SPA surfaces a
+ * subtle inline note in that case. Hand-authored pending codegen, as
+ * with `PageWithApprovalV1` above. */
 export type PagesListPageV1 =
-  components["schemas"]["PagesListPageV1"];
+  Omit<components["schemas"]["PagesListPageV1"], "rows"> & {
+    rows: PageWithApprovalV1[];
+    live_list_available: boolean;
+  };
 
 export type CreatePageApprovalRequestV1 =
   components["schemas"]["CreatePageApprovalRequestV1"];

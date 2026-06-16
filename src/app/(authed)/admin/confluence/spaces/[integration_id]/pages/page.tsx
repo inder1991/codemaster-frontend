@@ -98,6 +98,11 @@ export default function SpacePagesAdminPage() {
 
   const rows: PageWithApprovalV1[] =
     (query.data?.rows ?? []) as PageWithApprovalV1[];
+  // The live page list is unavailable when the upstream Confluence call
+  // degraded (auth/rate-limit/outage); the endpoint then returns only
+  // already-ingested pages. Treat a missing flag as available so the note
+  // doesn't flash before the field lands in older cached payloads.
+  const liveListAvailable = query.data?.live_list_available !== false;
 
   return (
     <div className="space-y-6">
@@ -109,6 +114,19 @@ export default function SpacePagesAdminPage() {
           dispatches a resync so cached chunks are flushed within minutes.
         </p>
       </header>
+
+      {!liveListAvailable ? (
+        <p
+          role="note"
+          className={cn("flex items-center gap-x-2", t.meta, colors.text.muted)}
+        >
+          <span
+            aria-hidden="true"
+            className={cn("size-1.5 rounded-full", "bg-[oklch(72%_0.16_65)]")}
+          />
+          Live page list unavailable — showing ingested pages only.
+        </p>
+      ) : null}
 
       {rows.length === 0 ? (
         <p className={cn(t.body, colors.text.muted)}>No pages tracked yet.</p>
@@ -168,7 +186,10 @@ export default function SpacePagesAdminPage() {
                     </div>
                   </td>
                   <td className="px-3 py-2">
-                    <StatusBadge status={row.approval_status} />
+                    <LifecycleChip
+                      ingestStatus={row.ingest_status}
+                      approvalStatus={row.approval_status}
+                    />
                   </td>
                   <td className={cn("px-3 py-2", t.meta, colors.text.muted)}>
                     {row.approval_status === "approved"
@@ -176,23 +197,11 @@ export default function SpacePagesAdminPage() {
                       : "—"}
                   </td>
                   <td className="px-3 py-2 text-right">
-                    {row.approval_status === "approved" ? (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setRevokeTarget(row)}
-                      >
-                        Revoke
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => setApproveTarget(row)}
-                      >
-                        Approve
-                      </Button>
-                    )}
+                    <RowAction
+                      row={row}
+                      onApprove={() => setApproveTarget(row)}
+                      onRevoke={() => setRevokeTarget(row)}
+                    />
                   </td>
                 </tr>
               ))}
@@ -242,27 +251,110 @@ export default function SpacePagesAdminPage() {
   );
 }
 
-function StatusBadge({
-  status,
+type ChipTone = "success" | "info" | "pending" | "neutral";
+
+interface LifecycleChipSpec {
+  label: string;
+  tone: ChipTone;
+}
+
+/**
+ * Derive the page lifecycle chip from the (ingest_status, approval_status)
+ * pair. `revoked` dominates regardless of ingest state. We deliberately do
+ * NOT fetch live Confluence labels here, so a `not_ingested + none` page is
+ * just an ordinary tracked page that may never need approval — its chip is
+ * neutral ("Not ingested"), not a call to action.
+ *
+ * Exported for unit testing of the full pair matrix.
+ */
+export function lifecycleChip(
+  ingestStatus: PageWithApprovalV1["ingest_status"],
+  approvalStatus: PageWithApprovalV1["approval_status"],
+): LifecycleChipSpec {
+  if (approvalStatus === "revoked") {
+    return { label: "Revoked", tone: "neutral" };
+  }
+  if (approvalStatus === "approved") {
+    return ingestStatus === "ingested"
+      ? { label: "In default corpus", tone: "success" }
+      : { label: "Approved · ingesting…", tone: "pending" };
+  }
+  // approval_status === "none"
+  return ingestStatus === "ingested"
+    ? { label: "Ingested", tone: "info" }
+    : { label: "Not ingested", tone: "neutral" };
+}
+
+const CHIP_PALETTE: Record<ChipTone, string> = {
+  success:
+    "bg-[oklch(94%_0.05_165)] text-[oklch(45%_0.13_165)] dark:bg-[oklch(26%_0.08_165)] dark:text-[oklch(80%_0.13_165)]",
+  info: "bg-[oklch(94%_0.05_235)] text-[oklch(48%_0.13_235)] dark:bg-[oklch(26%_0.08_235)] dark:text-[oklch(80%_0.13_235)]",
+  pending:
+    "bg-[oklch(95%_0.06_75)] text-[oklch(48%_0.12_60)] dark:bg-[oklch(28%_0.07_60)] dark:text-[oklch(82%_0.12_75)]",
+  neutral:
+    "bg-[oklch(94%_0.01_80)] text-[oklch(50%_0.01_80)] dark:bg-[oklch(26%_0.01_80)] dark:text-[oklch(75%_0.01_80)]",
+};
+
+function LifecycleChip({
+  ingestStatus,
+  approvalStatus,
 }: {
-  status: PageWithApprovalV1["approval_status"];
+  ingestStatus: PageWithApprovalV1["ingest_status"];
+  approvalStatus: PageWithApprovalV1["approval_status"];
 }) {
-  const palette =
-    status === "approved"
-      ? "bg-[oklch(94%_0.05_165)] text-[oklch(45%_0.13_165)] dark:bg-[oklch(26%_0.08_165)] dark:text-[oklch(80%_0.13_165)]"
-      : status === "revoked"
-        ? "bg-[oklch(94%_0.01_80)] text-[oklch(50%_0.01_80)] dark:bg-[oklch(26%_0.01_80)] dark:text-[oklch(75%_0.01_80)]"
-        : "bg-[oklch(94%_0.05_235)] text-[oklch(48%_0.13_235)] dark:bg-[oklch(26%_0.08_235)] dark:text-[oklch(80%_0.13_235)]";
+  const { label, tone } = lifecycleChip(ingestStatus, approvalStatus);
   return (
     <span
       className={cn(
         "inline-block px-2 py-0.5",
         radius.sm,
         t.caption,
-        palette,
+        CHIP_PALETTE[tone],
       )}
     >
-      {status}
+      {label}
     </span>
+  );
+}
+
+/**
+ * Per-row action. Approved rows offer Revoke. Unapproved rows offer an
+ * Approve action wired to the page_id-based `postPageApproval` (so it works
+ * for not-ingested rows too). For `not_ingested + none` the label is
+ * "Approve for default corpus" and the variant is a quiet `secondary` — we
+ * can't tell from here whether the page is default-labeled, so we don't
+ * push it as a primary CTA.
+ */
+function RowAction({
+  row,
+  onApprove,
+  onRevoke,
+}: {
+  row: PageWithApprovalV1;
+  onApprove: () => void;
+  onRevoke: () => void;
+}) {
+  if (row.approval_status === "approved") {
+    return (
+      <Button variant="secondary" size="sm" onClick={onRevoke}>
+        Revoke
+      </Button>
+    );
+  }
+  // approval_status is "none" or "revoked" — both offer an Approve action.
+  // For a not-ingested page we can't tell whether it's default-labeled, so
+  // we offer a quiet `secondary` "Approve for default corpus" rather than a
+  // loud primary CTA. Everything else keeps the original primary "Approve".
+  if (row.approval_status === "none" && row.ingest_status === "not_ingested") {
+    return (
+      <Button variant="secondary" size="sm" onClick={onApprove}>
+        Approve for default corpus
+      </Button>
+    );
+  }
+  return (
+    <Button variant="primary" size="sm" onClick={onApprove}>
+      Approve
+    </Button>
   );
 }
