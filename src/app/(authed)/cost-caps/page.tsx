@@ -33,6 +33,7 @@ import { useState } from "react";
 
 import { EditCostCapModal } from "@/components/cost-caps/EditCostCapModal";
 import { EditCostCapOverrideModal } from "@/components/cost-caps/EditCostCapOverrideModal";
+import { InitCostCapsCard } from "@/components/cost-caps/InitCostCapsCard";
 import { PendingChangesTable } from "@/components/cost-caps/PendingChangesTable";
 import { Card } from "@/components/ui/elements/Card";
 import { AdminApiError } from "@/lib/api/admin";
@@ -126,6 +127,25 @@ export default function CostCapsPage() {
   }
 
   const data = query.data;
+
+  // Unconfigured platform (settings:null) → first-time setup. Direct-write bootstrap; once configured the
+  // page below renders the governance dashboard (settings is non-null past this guard).
+  if (data.settings === null) {
+    return (
+      <div className="space-y-6 p-6" data-testid="cost-caps-page">
+        <header>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Cost caps</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Daily Bedrock spend ceiling. Changes require approval from a second admin (super_admin or
+            platform_owner).
+          </p>
+        </header>
+        <InitCostCapsCard />
+      </div>
+    );
+  }
+
+  const settings = data.settings;
   const installationOptions = data.overrides.map((o) => ({
     installation_id: o.installation_id,
     installation_name: o.installation_name,
@@ -164,7 +184,7 @@ export default function CostCapsPage() {
             <p
               className={`text-2xl font-semibold ${_severityClass(
                 data.todays_projected_global_cents,
-                data.settings.global_cap_cents,
+                settings.global_cap_cents,
               )}`}
               data-testid="projected-spend"
             >
@@ -179,7 +199,7 @@ export default function CostCapsPage() {
               className="text-2xl text-gray-900 dark:text-gray-100"
               data-testid="global-cap"
             >
-              {formatCents(data.settings.global_cap_cents)}
+              {formatCents(settings.global_cap_cents)}
             </p>
           </div>
         </div>
@@ -193,22 +213,22 @@ export default function CostCapsPage() {
         <div className="grid gap-4 md:grid-cols-2">
           <SettingRow
             label="Global cap"
-            value={formatCents(data.settings.global_cap_cents)}
+            value={formatCents(settings.global_cap_cents)}
             onEdit={() =>
               setModal({
                 kind: "edit-global",
-                current_cap_cents: data.settings.global_cap_cents,
+                current_cap_cents: settings.global_cap_cents,
               })
             }
             testId="edit-global-cap"
           />
           <SettingRow
             label="Per-org default"
-            value={formatCents(data.settings.per_org_default_cap_cents)}
+            value={formatCents(settings.per_org_default_cap_cents)}
             onEdit={() =>
               setModal({
                 kind: "edit-per-org-default",
-                current_cap_cents: data.settings.per_org_default_cap_cents,
+                current_cap_cents: settings.per_org_default_cap_cents,
               })
             }
             testId="edit-per-org-default-cap"
